@@ -9,16 +9,16 @@ const PORT = 3004;
 
 app.use(bodyParser.json());
 
-// open db
-// let db = new sqlite3.Database("./db/users.db", sqlite3.OPEN_READWRITE, (err) => {
-//     if (err) {
-//         console.error(err.message);
-//     } else {
-//         console.log("connected to database: users");
-//     }
-// });
+// open db: users
+let db = new sqlite3.Database("./db/users.db", sqlite3.OPEN_CREATE, (err) => {
+    if (err) {
+        console.error(err.message);
+    } else {
+        console.log("connected to database: users");
+    }
+});
 
-// db.close();
+db.close();
 
 // validate authorization request, provide token
 app.get('/login', (req, res) => {
@@ -53,13 +53,15 @@ app.get('/login', (req, res) => {
     // res.send({"auth-token": "lskjdf"});
 });
 
-app.get('/verify/:token', (req, res) => {
-    const {token} = req.params;
+app.get('/verify', (req, res) => {
+    console.log("/verify");
+    const token = req.headers.authorization.toString().split(" ")[1];
+    console.log(token)
     jwt.verify(token, "secret-phrase", (err, verified_jwt) => {
         if (err) {
             res.send(err.message);
         } else {
-            res.send(verified_jwt);
+            res.send("verified!");
         }
     })
 });
