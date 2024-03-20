@@ -9,18 +9,15 @@ const PORT = 3004;
 
 app.use(bodyParser.json());
 
-// open db: users
-let db = new sqlite3.Database("./db/users.db", sqlite3.OPEN_CREATE, (err) => {
-    if (err) {
-        console.error(err.message);
-    } else {
-        console.log("connected to database: users");
-    }
+// open db
+let db = new sqlite3.Database('./db/main.db');
+
+// start server
+app.listen((PORT), () => {
+    console.log(`server is running on port ${PORT}`);
 });
 
-db.close();
-
-// validate authorization request, provide token
+// validate login request, provide jwt token
 app.get('/login', (req, res) => {
     console.log("\n/login");
 
@@ -45,12 +42,11 @@ app.get('/login', (req, res) => {
         token.setExpiration(new Date().getTime() + (60 * 1000));
         res.send(token.compact());
     } else {
-        let err = new Error("unauthenticated request!");
+        let err = new Error("failed to authenticate!");
         res.setHeader("WWW-Authenticate", "Basic");
         err.status = 401;
         res.send(err);
     }
-    // res.send({"auth-token": "lskjdf"});
 });
 
 app.get('/verify', (req, res) => {
@@ -65,7 +61,3 @@ app.get('/verify', (req, res) => {
         }
     })
 });
-
-app.listen((PORT), () => {
-    console.log(`server is running on port ${PORT}`);
-})
