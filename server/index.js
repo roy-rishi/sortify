@@ -110,6 +110,7 @@ app.post("/verify-email", (req, res) => {
     });
 });
 
+// add a user to the database, required: Email, Password, Name, auth via jwt
 app.post("/create-user", (req, res) => {
     console.log("\n/create-user");
 
