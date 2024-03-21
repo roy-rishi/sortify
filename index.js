@@ -4,6 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 const jwt = require('njwt');
 require('dotenv').config();
 var nodemailer = require('nodemailer');
+const bcrypt = require("bcrypt")
 
 const app = express();
 const PORT = 3004;
@@ -43,32 +44,49 @@ app.get('/login', (req, res) => {
     // parse authentication header
     const auth_header = req.headers.authorization;
     if (!auth_header) {
-        let err = new Error("unauthenticated request!");
         res.setHeader("WWW-Authenticate", "Basic");
-        err.status = 401;
-        return next(err);
+        return res.status(401).send("unauthorized request");
     }
-    const auth = new Buffer.from(auth_header.split(" ")[1], "base64").toString().split(":");
+    let auth = null;
+    try {
+        auth = new Buffer.from(auth_header.split(" ")[1], "base64").toString().split(":");
+    } catch (err) {
+        return res.status(400).send("An error occured while parsing the provided basic auth header");
+    }
     const user = auth[0];
     const pass = auth[1];
 
     // validate authentication values
-    if (user == "rishi" && pass == "nom") {
-        // authorization success
-        console.log("authorization successful");
-        res.send(createJWT(user, 2));
-    } else {
-        let err = new Error("failed to authenticate!");
-        res.setHeader("WWW-Authenticate", "Basic");
-        err.status = 401;
-        res.send(err);
-    }
+    db.get(`SELECT * FROM Users where Email = ?`, [user], (err, row) => {
+        if (err)
+            return res.status(500).send(err.message); // unknown error
+        if (row == null)
+            return res.status(422).send("Email not found");
+        let db_hash = row.Password;
+        // compare hashes
+        bcrypt
+            .compare(pass, db_hash)
+            .then(result => {
+                if (result == true) {
+                    console.log("authorization successful");
+                    res.send(createJWT(user, 2));
+                } else
+                    return res.status(401).send("Invalid password");
+            })
+            .catch(err => {
+                console.error(err.message);
+                res.status(500).send(err.message);
+            });
+    });
 });
 
+// email a verification jwt, required: body.email
 app.post("/verify-email", (req, res) => {
     console.log("\n/verify-email");
 
     const email = req.body.email;
+    if (email == null)
+        return res.status(422).send("Missing email in body");
     // create jwt with their email and 15 minute expiration
     const access_token = createJWT(email, 15);
 
@@ -81,10 +99,65 @@ app.post("/verify-email", (req, res) => {
 
     transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
-            console.log(error);
+            if (error.toString().includes("Error: No recipients defined"))
+                return res.status(422).send("Likely failed due to invalid email address");
+            else
+                return res.status(500).send(error);
         } else {
             console.log("sent confirmation email", info.response);
-            res.send("confirmation email sent");
+            res.send("Confirmation email sent");
+        }
+    });
+});
+
+app.post("/create-user", (req, res) => {
+    console.log("\n/create-user");
+
+    if (req.headers.authorization == null)
+        res.status(401).send("Missing JWT authorization");
+    let jwt_token = null;
+    try {
+        jwt_token = req.headers.authorization.toString().split(" ")[1];
+    } catch {
+        return res.status(400).send("Unable to parse JWT");
+    }
+    let email = null;
+    const pass = req.body.pass;
+    const name = req.body.name;
+    // verify jwt
+    jwt.verify(jwt_token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message); // invalid jwt
+        else {
+            console.log("verified jwt:");
+            console.log(verified_jwt);
+            email = verified_jwt.body.email; // get email from jwt
+            // hash password
+            bcrypt
+                .hash(pass, 5)
+                .then(hash => {
+                    console.log("hash ", hash);
+                    console.log("registering user ", email, name);
+                    // insert user into db
+                    const query = `INSERT INTO Users(Email, Password, Name) VALUES(?, ?, ?);`
+                    db.run(query, [email, hash, name], (err) => {
+                        if (err) {
+                            // user already exists error
+                            if (err.message.includes("SQLITE_CONSTRAINT: UNIQUE constraint failed:")) {
+                                res.status(422).send("This user already exists");
+                                return console.log("This user already exists!");
+                            }
+                            // other error
+                            console.error(err.message);
+                            return res.status(500).send(err.message);
+                        } else
+                            return res.send("created user!");
+                    });
+                })
+                .catch(err => {
+                    console.error(err.message);
+                    return res.status(500).send(err.message);
+                });
         }
     });
 });
