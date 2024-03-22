@@ -35,7 +35,7 @@ class MyHomePage extends StatelessWidget {
     var appState = context.watch<MyAppState>();
 
     final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.displayMedium!.copyWith(
+    final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
     );
 
@@ -43,7 +43,18 @@ class MyHomePage extends StatelessWidget {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [Text('Sortify', style: titleStyle)],
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: Text('Sortify', style: titleStyle),
+            ),
+            SizedBox(
+              width: 250,
+              child: LinearProgressIndicator(
+                value: null,
+              ),
+            ),
+          ],
         ),
       ),
     );
