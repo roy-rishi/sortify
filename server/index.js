@@ -166,9 +166,13 @@ app.post("/create-user", (req, res) => {
 app.get('/verify', (req, res) => {
     console.log("\n/verify");
 
+    if (req.headers.authorization == null)
+        return res.status(404).send("Missing authorization");
+
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
-        console.log(err ? err.message : "verified jwt");
-        res.send(err ? err.message : "verified!");
+        if (err)
+            return res.status(401).send(err.message);
+        return res.send("Verified jwt");
     });
 });
