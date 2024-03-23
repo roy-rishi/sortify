@@ -167,7 +167,7 @@ app.get('/verify', (req, res) => {
     console.log("\n/verify");
 
     if (req.headers.authorization == null)
-        return res.status(404).send("Missing authorization");
+        return res.status(401).send("Missing authorization");
 
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
@@ -175,4 +175,18 @@ app.get('/verify', (req, res) => {
             return res.status(401).send(err.message);
         return res.send("Verified jwt");
     });
+});
+
+app.post('/email-status', (req, res) => {
+    console.log("\n/email-status");
+    console.log(req);
+
+    if (req.body.email == null)
+        return res.status(442).send("Missing body.email");
+
+    db.get(`SELECT * FROM users WHERE Email = ?`, [req.body.email], (err, row) => {
+        if (err)
+            return res.status(500).send(err.message);
+        return res.send(row ? "Email is registered": "Email not registered");
+    })
 });

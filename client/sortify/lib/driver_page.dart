@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'app_state.dart';
 import 'loading_page.dart';
-import 'signup_page.dart';
+import 'login_page.dart';
 
 class DriverPage extends StatefulWidget {
   @override
@@ -21,6 +21,8 @@ class _DriverPageState extends State<DriverPage> {
         page = LoadingPage();
       case 1:
         page = SignUpPage();
+      case 2:
+        page = const Text("Sign Up");
       default:
         throw UnimplementedError("No widget for $appState.pageIndex");
     }

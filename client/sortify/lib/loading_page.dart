@@ -11,13 +11,13 @@ Future<String> verifyReq() async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401 || response.body == "Missing authorization" || response.body == "Poor authentication") {
+  if (response.statusCode == 401 ||
+      response.body == "Missing authorization" ||
+      response.body == "Poor authentication") {
     return "Password required";
   }
-  print(response.body);
   throw Exception(response.body);
 }
-
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
