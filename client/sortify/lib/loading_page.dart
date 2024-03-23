@@ -1,12 +1,26 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'app_state.dart';
 
+final storage = FlutterSecureStorage();
+
 Future<String> verifyReq() async {
-  final response = await http.get(Uri.parse("http://localhost:3004/verify"));
+  final storedJwt = await storage.read(key: "jwt");
+  print(storedJwt);
+
+  final response = await http.get(
+    Uri.parse("http://localhost:3004/verify"),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+    },
+  );
 
   if (response.statusCode == 200) {
     return response.body;
@@ -58,7 +72,7 @@ class _LoadingPageState extends State<LoadingPage> {
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   if (snapshot.data.toString() == "Password required") {
-                    WidgetsBinding.instance!.addPostFrameCallback((_) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
                       appState.updatePageIndex(1);
                     });
                   } else {

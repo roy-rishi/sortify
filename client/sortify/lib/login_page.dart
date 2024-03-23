@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'app_state.dart';
+
+final storage = FlutterSecureStorage();
 
 Future<String> emailStatus(String email) async {
   final response = await http.post(
@@ -20,7 +25,28 @@ Future<String> emailStatus(String email) async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  print(response.body);
+  throw Exception(response.body);
+}
+
+void attemptLogin(String email, String password) async {
+  final response = await http.post(
+    Uri.parse("http://localhost:3004/login"),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      HttpHeaders.authorizationHeader:
+          "Basic ${base64Encode(utf8.encode("$email:$password"))}",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    print(response.body);
+    await storage.write(key: "jwt", value: response.body.toString());
+    print("Authorization successful");
+    return;
+  } else if (response.statusCode == 401) {
+    print("Authorization not successful");
+    return;
+  }
   throw Exception(response.body);
 }
 
@@ -89,16 +115,9 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     );
                   } else if (snapshot.data == "Email not registered") {
-                    emailRegStatus = snapshot.data.toString();
-
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Text("To sign up, verify your email"),
-                        ),
-                      ],
-                    );
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      appState.updatePageIndex(2);
+                    });
                   }
                 } else if (snapshot.hasError) {
                   return Text("Error: ${snapshot.error}");
@@ -122,11 +141,9 @@ class _SignUpPageState extends State<SignUpPage> {
                       );
                       print(_emailController.text.trim());
                     } else if (emailRegStatus == "Email not registered") {
-                      WidgetsBinding.instance!.addPostFrameCallback((_) {
-                        appState.updatePageIndex(2);
-                      });
                     } else if (emailRegStatus == "Email is registered") {
-
+                      attemptLogin(_emailController.text.trim(),
+                          _passwordController.text.trim());
                     }
                   },
                   child: Text("Continue"),

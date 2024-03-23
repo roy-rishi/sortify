@@ -38,14 +38,15 @@ var transporter = nodemailer.createTransport({
 });
 
 // validate login request, provide jwt token
-app.get('/login', (req, res) => {
+app.post('/login', (req, res) => {
     console.log("\n/login");
 
     // parse authentication header
     const auth_header = req.headers.authorization;
+    console.log(auth_header);
     if (!auth_header) {
         res.setHeader("WWW-Authenticate", "Basic");
-        return res.status(401).send("unauthorized request");
+        return res.status(401).send("Unauthorized request");
     }
     let auth = null;
     try {
@@ -68,10 +69,10 @@ app.get('/login', (req, res) => {
             .compare(pass, db_hash)
             .then(result => {
                 if (result == true) {
-                    console.log("authorization successful");
+                    console.log("Successful");
                     res.send(createJWT(user, 2));
                 } else
-                    return res.status(401).send("Invalid password");
+                    return res.status(401).send("Not successful");
             })
             .catch(err => {
                 console.error(err.message);
@@ -179,7 +180,6 @@ app.get('/verify', (req, res) => {
 
 app.post('/email-status', (req, res) => {
     console.log("\n/email-status");
-    console.log(req);
 
     if (req.body.email == null)
         return res.status(442).send("Missing body.email");
