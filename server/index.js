@@ -5,9 +5,15 @@ const jwt = require('njwt');
 require('dotenv').config();
 const bcrypt = require("bcrypt")
 const { exec } = require('child_process');
+var cors = require('cors');
 
 const app = express();
 const PORT = 3004;
+
+const corsOptions = {
+    origin: "http://localhost:8000", // allow access to this origin
+    optionsSuccessStatus: 200 // legacy browsers
+};
 
 function createJWT(user, expiration_mins) {
     // add identifying information
@@ -39,6 +45,7 @@ let db = new sqlite3.Database('./db/main.db');
 // start server
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
 app.listen((PORT), () => {
     console.log(`server is running on port ${PORT}`);
 });
