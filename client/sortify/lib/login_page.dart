@@ -28,7 +28,7 @@ Future<String> emailStatus(String email) async {
   throw Exception(response.body);
 }
 
-void attemptLogin(String email, String password) async {
+Future<bool> attemptLogin(String email, String password) async {
   final response = await http.post(
     Uri.parse("http://localhost:3004/login"),
     headers: <String, String>{
@@ -42,22 +42,22 @@ void attemptLogin(String email, String password) async {
     print(response.body);
     await storage.write(key: "jwt", value: response.body.toString());
     print("Authorization successful");
-    return;
+    return true;
   } else if (response.statusCode == 401) {
     print("Authorization not successful");
-    return;
+    return false;
   }
   throw Exception(response.body);
 }
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({Key? key}) : super(key: key);
+class LoginPage extends StatefulWidget {
+  const LoginPage({Key? key}) : super(key: key);
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class _LoginPageState extends State<LoginPage> {
   late Future<String> futureEmailStatus = Future.value(""); // Initialize here
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -115,6 +115,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     );
                   } else if (snapshot.data == "Email not registered") {
+                    appState.email = _emailController.text.trim();
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       appState.updatePageIndex(2);
                     });
@@ -133,17 +134,28 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: OutlinedButton(
                   onPressed: () {
                     if (emailRegStatus == "Unverified") {
-                      setState(
-                        () {
-                          futureEmailStatus =
-                              emailStatus(_emailController.text.trim());
-                        },
-                      );
+                      setState(() {
+                        futureEmailStatus =
+                            emailStatus(_emailController.text.trim());
+                      });
                       print(_emailController.text.trim());
-                    } else if (emailRegStatus == "Email not registered") {
                     } else if (emailRegStatus == "Email is registered") {
                       attemptLogin(_emailController.text.trim(),
-                          _passwordController.text.trim());
+                              _passwordController.text.trim())
+                          .then((loginStatus) {
+                        if (loginStatus) {
+                          appState.updatePageIndex(3);
+                        } else {
+                          print("Login failed");
+
+                          var snackBar = SnackBar(
+                            content: Center(child: Text("Invalid Login Credentials")),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                        }
+                      }).catchError((error) {
+                        print(error);
+                      });
                     }
                   },
                   child: Text("Continue"),

@@ -112,15 +112,18 @@ app.post("/create-user", (req, res) => {
     try {
         jwt_token = req.headers.authorization.toString().split(" ")[1];
     } catch {
-        return res.status(400).send("Unable to parse JWT");
+        return res.status(400).send("Unable to parse token");
     }
     let email = null;
     const pass = req.body.pass;
     const name = req.body.name;
     // verify jwt
     jwt.verify(jwt_token, process.env.SECRET, (err, verified_jwt) => {
-        if (err)
+        if (err) {
+            if (err.message == "Jwt is expired")
+                return res.status(401).send("Code is expired");
             return res.status(401).send(err.message); // invalid jwt
+        }
         else {
             console.log("verified jwt:");
             console.log(verified_jwt);
@@ -137,14 +140,14 @@ app.post("/create-user", (req, res) => {
                         if (err) {
                             // user already exists error
                             if (err.message.includes("SQLITE_CONSTRAINT: UNIQUE constraint failed:")) {
-                                res.status(422).send("This user already exists");
+                                res.status(422).send("User already exists");
                                 return console.log("This user already exists!");
                             }
                             // other error
                             console.error(err.message);
                             return res.status(500).send(err.message);
                         } else
-                            return res.send("created user!");
+                            return res.send("Created user");
                     });
                 })
                 .catch(err => {

@@ -75,6 +75,10 @@ class _LoadingPageState extends State<LoadingPage> {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       appState.updatePageIndex(1);
                     });
+                  } else if (snapshot.data.toString() == "Verified jwt") {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      appState.updatePageIndex(3);
+                    });
                   } else {
                     return Text(snapshot.data.toString());
                   }
