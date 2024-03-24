@@ -3,8 +3,8 @@ const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('njwt');
 require('dotenv').config();
-var nodemailer = require('nodemailer');
 const bcrypt = require("bcrypt")
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = 3004;
@@ -17,6 +17,21 @@ function createJWT(user, expiration_mins) {
     return token.compact();
 }
 
+function sendEmail(address, subject, body) {
+    exec(`osascript -e '
+    tell application "Mail"
+        set newMessage to (a reference to (make new outgoing message))
+        tell newMessage
+            make new to recipient at beginning of to recipients ¬
+                with properties {address:"${address}"}
+            set the sender to "Sortify <${process.env.EMAIL}>"
+            set the subject to "${subject}"
+            set the content to "${body}"
+            send
+        end tell
+    end tell'`);
+}
+
 
 // open db
 let db = new sqlite3.Database('./db/main.db');
@@ -26,15 +41,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.listen((PORT), () => {
     console.log(`server is running on port ${PORT}`);
-});
-
-// init email service
-var transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL,
-        pass: process.env.PASS
-    }
 });
 
 // validate login request, provide jwt token
@@ -88,27 +94,12 @@ app.post("/verify-email", (req, res) => {
     const email = req.body.email;
     if (email == null)
         return res.status(422).send("Missing email in body");
-    // create jwt with their email and 15 minute expiration
-    const access_token = createJWT(email, 15);
 
-    var mailOptions = {
-        from: process.env.EMAIL,
-        to: email,
-        subject: "Verify Your Email to Use Sortify",
-        html: `<h2>Please enter this access code in the Sortify application</h2><p>For your security, we do not provide a direct link.</p><b>${access_token}</b>\n<p>If you did not request to sign up, please disregard this email.</p>`
-    };
+    const access_token = createJWT(email, 15); // jwt with their email and 15 minute expiration
 
-    transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-            if (error.toString().includes("Error: No recipients defined"))
-                return res.status(422).send("Likely failed due to invalid email address");
-            else
-                return res.status(500).send(error);
-        } else {
-            console.log("sent confirmation email", info.response);
-            res.send("Confirmation email sent");
-        }
-    });
+    const body = `Please enter this access code in the Sortify application\n\n${access_token}\n\nFor your security, we do not provide a direct link.\nIf you did not request to sign up, please disregard this email.`;
+    sendEmail(email, "Verify Your Email to Use Sortify", body);
+    return res.send("Attempted to send email, status unknown");
 });
 
 // add a user to the database, required: Email, Password, Name, auth via jwt
@@ -187,6 +178,6 @@ app.post('/email-status', (req, res) => {
     db.get(`SELECT * FROM users WHERE Email = ?`, [req.body.email], (err, row) => {
         if (err)
             return res.status(500).send(err.message);
-        return res.send(row ? "Email is registered": "Email not registered");
+        return res.send(row ? "Email is registered" : "Email not registered");
     })
 });
