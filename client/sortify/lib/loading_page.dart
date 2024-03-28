@@ -12,7 +12,7 @@ final storage = FlutterSecureStorage();
 
 Future<String> verifyReq() async {
   final storedJwt = await storage.read(key: "jwt");
-  print(storedJwt);
+  // print(storedJwt);
 
   final response = await http.get(
     Uri.parse("http://localhost:3004/verify"),
@@ -56,6 +56,8 @@ class _LoadingPageState extends State<LoadingPage> {
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
+      fontSize: 110,
     );
 
     return Scaffold(
@@ -70,7 +72,14 @@ class _LoadingPageState extends State<LoadingPage> {
             FutureBuilder<String>(
               future: futureValidReq,
               builder: (context, snapshot) {
-                if (snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return SizedBox(
+                    width: 230,
+                    child: LinearProgressIndicator(
+                      value: null,
+                    ),
+                  );
+                } else if (snapshot.hasData) {
                   if (snapshot.data.toString() == "Password required") {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       appState.updatePageIndex(1);
@@ -79,16 +88,10 @@ class _LoadingPageState extends State<LoadingPage> {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       appState.updatePageIndex(3);
                     });
-                  } else {
-                    return Text(snapshot.data.toString());
                   }
+                  return Text(snapshot.data.toString());
                 }
-                return SizedBox(
-                  width: 230,
-                  child: LinearProgressIndicator(
-                    value: null,
-                  ),
-                );
+                return Text("Connection failed");
               },
             ),
           ],
