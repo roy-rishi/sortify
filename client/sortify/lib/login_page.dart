@@ -68,8 +68,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
     final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.displayMedium!.copyWith(
+    final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
     );
 
     return Scaffold(
