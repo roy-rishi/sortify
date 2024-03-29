@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'app_state.dart';
 
 class CardRowItem extends StatelessWidget {
   const CardRowItem(
@@ -13,8 +16,9 @@ class CardRowItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var appState = context.watch<AppState>();
     final theme = Theme.of(context);
-    const double paddingDist = 16;
+    const double paddingDist = 18;
 
     return Padding(
       padding: const EdgeInsets.only(
@@ -27,7 +31,7 @@ class CardRowItem extends StatelessWidget {
           child: InkWell(
               splashColor: theme.colorScheme.primary,
               onTap: () {
-                print("Card tapped");
+                appState.updatePageIndex(toPageIndex);
               },
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -60,6 +64,7 @@ class _HomePageState extends State<HomePage> {
     );
     final heading2Style = theme.textTheme.headlineMedium;
 
+
     return Center(
       child: SizedBox(
         width: 670,
@@ -91,11 +96,7 @@ class _HomePageState extends State<HomePage> {
                         CardRowItem(
                             text: "Start Round",
                             icon: Icons.play_arrow_outlined,
-                            toPageIndex: 1),
-                        CardRowItem(
-                            text: "Configuration",
-                            icon: Icons.settings_outlined,
-                            toPageIndex: 1),
+                            toPageIndex: 4),
                       ],
                     ),
                   ),
@@ -115,11 +116,7 @@ class _HomePageState extends State<HomePage> {
                         CardRowItem(
                             text: "Your Sorts",
                             icon: Icons.person_2_outlined,
-                            toPageIndex: 1),
-                        CardRowItem(
-                            text: "Shared Sorts",
-                            icon: Icons.people_alt_outlined,
-                            toPageIndex: 1),
+                            toPageIndex: 5),
                         AspectRatio(
                           aspectRatio: 1 / 1,
                           child: Column(
