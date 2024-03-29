@@ -6,6 +6,8 @@ require('dotenv').config();
 const bcrypt = require("bcrypt")
 const { exec } = require('child_process');
 var cors = require('cors');
+const axios = require('axios');
+const qs = require('querystring');
 
 const app = express();
 const PORT = 3004;
@@ -83,7 +85,7 @@ app.post('/login', (req, res) => {
             .then(result => {
                 if (result == true) {
                     console.log("Successful");
-                    res.send(createJWT(user, 2));
+                    res.send(createJWT(user, 5)); // 5 min jwt
                 } else
                     return res.status(401).send("Not successful");
             })
@@ -190,4 +192,74 @@ app.post('/email-status', (req, res) => {
             return res.status(500).send(err.message);
         return res.send(row ? "Email is registered" : "Email not registered");
     })
+});
+
+// spotify api routes
+var spotifyToken = "";
+
+app.get('/spotify/search', async (req, res) => {
+    console.log("\n/spotify/search");
+
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
+
+        if (req.query.query == null || req.query.type == null)
+            return res.status(442).send("Missing query or type in params");
+
+        const query = req.query.query;
+        const type = req.query.type;
+        const limit = req.query.limit; // check for null error
+        const offset = req.query.offset; // check for null error
+
+        function searchSpotify(retry) {
+            console.log("api.spotify.com/v1/search");
+            axios.get("https://api.spotify.com/v1/search", {
+                params: {
+                    q: query,
+                    type: type,
+                    limit: limit,
+                    offset: offset
+                },
+                headers: {
+                    "Authorization": `Bearer ${spotifyToken}`
+                }
+            })
+                .then(function (response) {
+                    return res.send(response.data);
+                })
+                .catch(function (error) {
+                    if (error.response.status === 401 || error.response.data.error.message == "Only valid bearer authentication supported") {
+                        console.log("accounts.spotify.com/api/token");
+                        axios.post("https://accounts.spotify.com/api/token",
+                            qs.stringify({
+                                "grant_type": "client_credentials",
+                                "client_id": process.env.CLIENT_ID,
+                                "client_secret": process.env.CLIENT_SECRET
+                            }),
+                            {
+                                headers: {
+                                    "Content-Type": "application/x-www-form-urlencoded"
+                                }
+                            }
+                        )
+                            .then(function (response) {
+                                console.log("acquired token");
+                                spotifyToken = response.data.access_token;
+                                if (!retry) {
+                                    return res.status(500).send("Unable to authorize for Spotify");
+                                }
+                                return searchSpotify(false); // second attempt to search after getting token
+                            })
+                            .catch(function (error) {
+                                return res.status(500).send("Could not retrieve data");
+                            });
+                    }
+                });
+        }
+        searchSpotify(true); // first attempt to search
+    });
 });
