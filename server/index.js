@@ -197,7 +197,7 @@ app.post('/email-status', (req, res) => {
 // spotify api routes
 var spotifyToken = "";
 
-app.get('/spotify/search', async (req, res) => {
+app.post('/spotify/search', async (req, res) => {
     console.log("\n/spotify/search");
 
     if (req.headers.authorization == null)

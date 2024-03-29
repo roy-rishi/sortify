@@ -1,8 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'app_state.dart';
 
+final storage = FlutterSecureStorage();
+
+// track holding classes
 class SongManager {
   List<Artist> artists = [];
   List<Album> albums = [];
@@ -87,6 +96,35 @@ class Track {
   });
 }
 
+// search for artist, album, or track
+// name: name of item, type: "artist", "album", or "track"
+Future<String> querySpotify(String name, String type, int limit, int offset) async {
+  final queryParameters = {
+    "query": "$type:$name",
+    "type": type,
+    "limit": limit.toString(),
+    "offset": offset.toString(),
+  };
+  // USE Uri.https FOR HTTPS
+  final uri = Uri.http("localhost:3004", "/spotify/search/", queryParameters);
+  final storedJwt = await storage.read(key: "jwt");
+  final response = await http.post(
+    uri,
+    headers: <String, String>{
+      HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return response.body;
+  }
+  if (response.statusCode == 401) {
+    throw UnimplementedError("Login Popup");
+  }
+  throw Exception(response.body);
+}
+
+// filter widget
 class SortParameter extends StatefulWidget {
   const SortParameter({super.key, required this.id, required this.onDelete});
 
@@ -208,13 +246,6 @@ class SortingPage extends StatefulWidget {
 class _SortingPageState extends State<SortingPage> {
   List<SortParameter> filterWidgets = [];
 
-  @override
-  void initState() {
-    super.initState();
-
-    // filterWidgets.add(SortParameter(id: 0, onDelete: _deleteFilterWidget));
-  }
-
   // prevent duplicate IDs
   var maxId = 0;
   // remove filter widget
@@ -318,7 +349,10 @@ class _SortingPageState extends State<SortingPage> {
                                     backgroundColor:
                                         MaterialStateProperty.all<Color>(theme
                                             .colorScheme.primaryContainer)),
-                                onPressed: () {},
+                                onPressed: () async {
+                                  final result = await querySpotify("Lorde", "artist", 10, 0);
+                                  print(result.toString());
+                                },
                                 child: Text("Run Filters"),
                               ),
                             ),
