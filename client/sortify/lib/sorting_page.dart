@@ -3,6 +3,90 @@ import 'package:provider/provider.dart';
 
 import 'app_state.dart';
 
+class SongManager {
+  List<Artist> artists = [];
+  List<Album> albums = [];
+
+  void addArtist(Artist artist) {
+    artists.add(artist);
+  }
+
+  void addAlbum(Album album) {
+    albums.add(album);
+  }
+}
+
+class Artist {
+  String name;
+  int followers = -1;
+  String _imageUrl = "";
+  String _spotifyUri = "";
+  List<Album> _albums = [];
+
+  Artist({
+    required this.name,
+  });
+
+  set imageUrl(String url) {
+    if (_validateUrl(url)) {
+      _imageUrl = url;
+      return;
+    }
+    throw ArgumentError("Image URL is not valid");
+  }
+
+  set spotifyUri(String uri) {
+    if (_validateUri(uri)) {
+      _spotifyUri = uri;
+      return;
+    }
+    throw ArgumentError("Artist URI is not valid");
+  }
+
+  static bool _validateUrl(String url) {
+    // TODO: VERIFY REGEX MATCHING
+    final RegExp urlRegex =
+        RegExp(r"^(?:https:|http:)\/\/i\.scdn\.co\/image\/[\w]+$");
+    return urlRegex.hasMatch(url);
+  }
+
+  static bool _validateUri(String uri) {
+    // TODO: VERIFY REGEX MATCHING
+    RegExp regex = RegExp(r"^spotify:artist:[\w]+$");
+    return regex.hasMatch(uri);
+  }
+}
+
+class Album {
+  String name;
+  String releaseDate;
+  String imageUrl;
+  String spotifyUri;
+  List<Track> tracks;
+
+  Album({
+    required this.name,
+    required this.releaseDate,
+    required this.imageUrl,
+    required this.spotifyUri,
+    required this.tracks,
+  });
+}
+
+class Track {
+  String name;
+  String releaseDate;
+  String imageUrl;
+  String spotifyUri;
+
+  Track({
+    required this.name,
+    required this.releaseDate,
+    required this.imageUrl,
+    required this.spotifyUri,
+  });
+}
+
 class SortParameter extends StatefulWidget {
   const SortParameter({super.key, required this.id, required this.onDelete});
 
@@ -36,7 +120,7 @@ class _SortParameterState extends State<SortParameter> {
                         Padding(
                           padding: const EdgeInsets.only(left: 25),
                           child: SizedBox(
-                            width: 280,
+                            width: 260,
                             child: TextField(
                               controller: nameController,
                               decoration: InputDecoration(labelText: "Name"),
@@ -136,8 +220,8 @@ class _SortingPageState extends State<SortingPage> {
   // remove filter widget
   void _deleteFilterWidget(int id) {
     setState(() {
-    filterWidgets.removeWhere((widget) => widget.id == id);
-  });
+      filterWidgets.removeWhere((widget) => widget.id == id);
+    });
   }
 
   @override
@@ -146,7 +230,7 @@ class _SortingPageState extends State<SortingPage> {
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
-      fontWeight: FontWeight.w400,
+      fontWeight: FontWeight.w600,
     );
 
     return Center(
@@ -221,7 +305,26 @@ class _SortingPageState extends State<SortingPage> {
                           ],
                         ),
                       ),
-                      ...filterWidgets,
+                      ...filterWidgets, // dynamically updated by list
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: SizedBox(
+                              height: 45,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                    backgroundColor:
+                                        MaterialStateProperty.all<Color>(theme
+                                            .colorScheme.primaryContainer)),
+                                onPressed: () {},
+                                child: Text("Run Filters"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
                     ],
                   ),
                 ),
