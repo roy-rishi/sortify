@@ -14,20 +14,62 @@ final storage = FlutterSecureStorage();
 List<SongRow> tracksToSort = [];
 
 class SongRow extends StatelessWidget {
-  const SongRow({super.key, required this.name, required this.album});
+  const SongRow({
+    super.key,
+    required this.track,
+    required this.image,
+  });
 
-  final String name;
-  final String album;
+  final Track track;
+  final Image image;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final nameStyle = theme.textTheme.labelLarge!.copyWith(
+      // color: theme.colorScheme.secondary,
+      fontWeight: FontWeight.w500,
+      fontSize: 16,
+    );
+    final bodyStyle = theme.textTheme.bodySmall!.copyWith(
+      fontSize: 13,
+    );
+
+    final String name = track.name;
+    final String artist = track.artistName;
+    final String albumName = track.albumName;
+    final String releaseDate = track.releaseDate;
+
     return SizedBox(
-      height: 60,
+      height: 65,
       child: Card(
           clipBehavior: Clip.hardEdge,
           // color: theme.colorScheme.secondaryContainer,
-          child: Column(
-            children: [Text(name), Text(album)],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 9),
+                    child: image,
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, // align text
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(name, style: nameStyle),
+                      Text(artist, style: bodyStyle),
+                    ],
+                  ),
+                ],
+              ),
+              Text(albumName, style: bodyStyle),
+              Padding(
+                padding: const EdgeInsets.only(right: 30),
+                child: Text(releaseDate, style: bodyStyle),
+              ),
+            ],
           )),
     );
   }
@@ -52,7 +94,7 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
             as Map<String, dynamic>;
     artist.id = artistData["artists"]["items"][0]["id"];
     artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
-    artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
+    artist.imageUrl = artistData["artists"]["items"][0]["images"][1]["url"];
     // fetch and parse api data for artist albums
     final artistAlbumData =
         jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
@@ -69,6 +111,9 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
       }
       final newAlbum = Album(name: artistAlbumData["items"][i]["name"]);
       newAlbum.id = artistAlbumData["items"][i]["id"];
+      newAlbum.artistName = artist.name;
+      newAlbum.imageUrl = artistAlbumData["items"][i]["images"][1]["url"];
+      newAlbum.releaseDate = artistAlbumData["items"][i]["release_date"];
       artist.albums.add(newAlbum);
     }
   }
@@ -77,8 +122,10 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
     final albumData = jsonDecode(await querySpotify(album.name, "album", 1, 0))
         as Map<String, dynamic>;
     album.id = albumData["albums"]["items"][0]["id"];
+    album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
     album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
     album.releaseDate = albumData["albums"]["items"][0]["release_date"];
+    print(album.releaseDate);
   }
   // fetch and parse album tracks
   List<Album> allAlbums = selections.albums;
@@ -96,6 +143,7 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
       album.tracks.add(Track(
           name: track["name"],
           albumName: album.name,
+          artistName: album.artistName,
           id: track["id"],
           releaseDate: album.releaseDate,
           imageUrl: album.imageUrl));
@@ -107,7 +155,8 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
   List<Track> finalTracks = selections.computeAllTracks();
   List<SongRow> songRows = [];
   for (final track in finalTracks) {
-    songRows.add(SongRow(name: track.name, album: track.albumName));
+    final image = Image.network(track.imageUrl);
+    songRows.add(SongRow(track: track, image: image));
   }
   return songRows;
 }
@@ -173,6 +222,7 @@ class Artist {
 
 class Album {
   String name;
+  String artistName = "";
   String releaseDate = "";
   String imageUrl = "";
   String id = "";
@@ -186,6 +236,7 @@ class Album {
 class Track {
   String name;
   String albumName;
+  String artistName;
   String releaseDate;
   String imageUrl;
   String id;
@@ -193,6 +244,7 @@ class Track {
   Track({
     required this.name,
     required this.albumName,
+    required this.artistName,
     required this.releaseDate,
     required this.imageUrl,
     required this.id,
@@ -410,8 +462,11 @@ class _SortingPageState extends State<SortingPage> {
     });
   }
 
+  bool calculatingTracksToSort = false;
+
   @override
   Widget build(BuildContext context) {
+    var appState = context.watch<AppState>();
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
@@ -504,14 +559,17 @@ class _SortingPageState extends State<SortingPage> {
                                           MaterialStateProperty.all<Color>(theme
                                               .colorScheme.primaryContainer)),
                                   onPressed: () async {
+                                    setState(() {
+                                      tracksToSort.clear();
+                                      calculatingTracksToSort = true;
+                                    });
                                     final songs =
                                         await calculateSongs(filterWidgets);
                                     setState(() {
-                                      tracksToSort.clear();
                                       for (final song in songs) {
                                         tracksToSort.add(song);
-                                        print(song.name);
                                       }
+                                      calculatingTracksToSort = false;
                                     });
                                   },
                                   child: Text("Use Filters"),
@@ -528,8 +586,56 @@ class _SortingPageState extends State<SortingPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(8),
                     children: <Widget>[
-                      // ADD THE SONGS HERE
-                      ...tracksToSort,
+                      // if loading icon should be displayed
+                      if (calculatingTracksToSort)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Column(
+                              children: [
+                                SizedBox(
+                                  height: 40,
+                                  width: 40,
+                                  child: CircularProgressIndicator(
+                                    value: null,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Text("Getting songs from Spotify",
+                                      style: theme.textTheme.headlineSmall),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      if (!calculatingTracksToSort && tracksToSort.isEmpty)
+                        Center(
+                            child: Text("Edit your filters to include songs")),
+                      // if continue button should be displayed
+                      if (!calculatingTracksToSort && tracksToSort.isNotEmpty)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SizedBox(
+                                height: 45,
+                                child: ElevatedButton(
+                                  style: ButtonStyle(
+                                      backgroundColor:
+                                          MaterialStateProperty.all<Color>(theme
+                                              .colorScheme.primaryContainer)),
+                                  onPressed: () {
+                                    appState.updatePageIndex(6);
+                                  },
+                                  child: Text("Continue"),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ...tracksToSort, // populate the right panel of songs
                     ],
                   ),
                 ),
