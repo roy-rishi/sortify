@@ -10,28 +10,14 @@ import 'app_state.dart';
 
 final storage = FlutterSecureStorage();
 
-void populateSongs(List<FilterData> filters) {
+void populateSongs(List<SortParameter> filters) {
   for (int i = 0; i < filters.length; i++) {
-    FilterData filter = filters[i];
+    SortParameter filter = filters[i];
     print("$i");
     print(filter.typeSelected);
     print(filter.actionSelected);
-    print(filter.filter.valueController.text);
+    print(filter.valueController.text);
   }
-}
-
-List<FilterData> filterWidgets = [];
-List<String> typeSelected = [];
-List<String> actionSelected = [];
-
-class FilterData {
-  SortParameter filter;
-  int id;
-
-  String typeSelected = "Artist";
-  String actionSelected = "Include";
-
-  FilterData({required this.id, required this.filter});
 }
 
 // track holding classes
@@ -119,6 +105,8 @@ class Track {
   });
 }
 
+// list of filter widgets
+List<SortParameter> filterWidgets = [];
 // search for artist, album, or track
 // name: name of item, type: "artist", "album", or "track"
 Future<String> querySpotify(
@@ -153,8 +141,10 @@ class SortParameter extends StatefulWidget {
   SortParameter({super.key, required this.id, required this.onDelete});
   final int id;
   final Function(int) onDelete;
-  
+
   final TextEditingController valueController = TextEditingController();
+  String typeSelected = "Artist";
+  String actionSelected = "Include";
 
   @override
   State<SortParameter> createState() => _SortParameterState();
@@ -196,16 +186,10 @@ class _SortParameterState extends State<SortParameter> {
                         children: [
                           Text("Type"),
                           DropdownButton<String>(
-                            value: filterWidgets
-                                .firstWhere(
-                                    (element) => element.id == widget.id)
-                                .typeSelected,
+                            value: widget.typeSelected,
                             onChanged: (String? newValue) {
                               setState(() {
-                                filterWidgets
-                                    .firstWhere(
-                                        (element) => element.id == widget.id)
-                                    .typeSelected = newValue!;
+                                widget.typeSelected = newValue!;
                               });
                             },
                             items: <String>["Artist", "Album"]
@@ -226,16 +210,10 @@ class _SortParameterState extends State<SortParameter> {
                         children: [
                           Text("Action"),
                           DropdownButton<String>(
-                            value: filterWidgets
-                                .firstWhere(
-                                    (element) => element.id == widget.id)
-                                .actionSelected,
+                            value: widget.actionSelected,
                             onChanged: (String? newValue) {
                               setState(() {
-                                filterWidgets
-                                    .firstWhere(
-                                        (element) => element.id == widget.id)
-                                    .actionSelected = newValue!;
+                                widget.actionSelected = newValue!;
                               });
                             },
                             items: <String>["Include", "Exclude"]
@@ -340,14 +318,11 @@ class _SortingPageState extends State<SortingPage> {
                                       onTap: () {
                                         // add a new SortParameter widget to list
                                         setState(() {
-                                          filterWidgets.add(FilterData(
-                                              id: maxId + 1,
-                                              filter: SortParameter(
-                                                key: UniqueKey(),
-                                                id: maxId +
-                                                    1, // create unused ID
-                                                onDelete: _deleteFilterWidget,
-                                              )));
+                                          filterWidgets.add(SortParameter(
+                                            key: UniqueKey(),
+                                            id: maxId + 1, // create unused ID
+                                            onDelete: _deleteFilterWidget,
+                                          ));
                                         });
                                         maxId++;
                                       },
@@ -367,9 +342,7 @@ class _SortingPageState extends State<SortingPage> {
                           ],
                         ),
                       ),
-                      ...filterWidgets
-                          .map((filterData) => filterData.filter)
-                          .toList(), // dynamically updated by list
+                      ...filterWidgets, // dynamically updated by list
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
