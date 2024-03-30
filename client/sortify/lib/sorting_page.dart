@@ -4,12 +4,35 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'app_state.dart';
 
 final storage = FlutterSecureStorage();
+
+void populateSongs(List<FilterData> filters) {
+  for (int i = 0; i < filters.length; i++) {
+    FilterData filter = filters[i];
+    print("$i");
+    print(filter.typeSelected);
+    print(filter.actionSelected);
+    print(filter.filter.valueController.text);
+  }
+}
+
+List<FilterData> filterWidgets = [];
+List<String> typeSelected = [];
+List<String> actionSelected = [];
+
+class FilterData {
+  SortParameter filter;
+  int id;
+
+  String typeSelected = "Artist";
+  String actionSelected = "Include";
+
+  FilterData({required this.id, required this.filter});
+}
 
 // track holding classes
 class SongManager {
@@ -98,7 +121,8 @@ class Track {
 
 // search for artist, album, or track
 // name: name of item, type: "artist", "album", or "track"
-Future<String> querySpotify(String name, String type, int limit, int offset) async {
+Future<String> querySpotify(
+    String name, String type, int limit, int offset) async {
   final queryParameters = {
     "query": "$type:$name",
     "type": type,
@@ -126,20 +150,17 @@ Future<String> querySpotify(String name, String type, int limit, int offset) asy
 
 // filter widget
 class SortParameter extends StatefulWidget {
-  const SortParameter({super.key, required this.id, required this.onDelete});
-
+  SortParameter({super.key, required this.id, required this.onDelete});
   final int id;
   final Function(int) onDelete;
+  
+  final TextEditingController valueController = TextEditingController();
 
   @override
   State<SortParameter> createState() => _SortParameterState();
 }
 
 class _SortParameterState extends State<SortParameter> {
-  final TextEditingController nameController = TextEditingController();
-  var typeSelected = "Artist";
-  var actionSelected = "Include";
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -160,7 +181,7 @@ class _SortParameterState extends State<SortParameter> {
                           child: SizedBox(
                             width: 260,
                             child: TextField(
-                              controller: nameController,
+                              controller: widget.valueController,
                               decoration: InputDecoration(labelText: "Name"),
                             ),
                           ),
@@ -175,10 +196,16 @@ class _SortParameterState extends State<SortParameter> {
                         children: [
                           Text("Type"),
                           DropdownButton<String>(
-                            value: typeSelected,
+                            value: filterWidgets
+                                .firstWhere(
+                                    (element) => element.id == widget.id)
+                                .typeSelected,
                             onChanged: (String? newValue) {
                               setState(() {
-                                typeSelected = newValue!;
+                                filterWidgets
+                                    .firstWhere(
+                                        (element) => element.id == widget.id)
+                                    .typeSelected = newValue!;
                               });
                             },
                             items: <String>["Artist", "Album"]
@@ -199,10 +226,16 @@ class _SortParameterState extends State<SortParameter> {
                         children: [
                           Text("Action"),
                           DropdownButton<String>(
-                            value: actionSelected,
+                            value: filterWidgets
+                                .firstWhere(
+                                    (element) => element.id == widget.id)
+                                .actionSelected,
                             onChanged: (String? newValue) {
                               setState(() {
-                                actionSelected = newValue!;
+                                filterWidgets
+                                    .firstWhere(
+                                        (element) => element.id == widget.id)
+                                    .actionSelected = newValue!;
                               });
                             },
                             items: <String>["Include", "Exclude"]
@@ -220,7 +253,6 @@ class _SortParameterState extends State<SortParameter> {
                       padding: const EdgeInsets.only(left: 15, right: 15),
                       child: IconButton(
                           onPressed: () {
-                            print("yo ${widget.id}");
                             widget.onDelete(widget.id);
                           },
                           icon: Icon(Icons.delete_outlined)),
@@ -244,8 +276,6 @@ class SortingPage extends StatefulWidget {
 }
 
 class _SortingPageState extends State<SortingPage> {
-  List<SortParameter> filterWidgets = [];
-
   // prevent duplicate IDs
   var maxId = 0;
   // remove filter widget
@@ -257,7 +287,6 @@ class _SortingPageState extends State<SortingPage> {
 
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<AppState>();
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
@@ -311,14 +340,16 @@ class _SortingPageState extends State<SortingPage> {
                                       onTap: () {
                                         // add a new SortParameter widget to list
                                         setState(() {
-                                          filterWidgets.add(SortParameter(
-                                            key: UniqueKey(),
-                                            id: maxId + 1, // create unused ID
-                                            onDelete: _deleteFilterWidget,
-                                          ));
+                                          filterWidgets.add(FilterData(
+                                              id: maxId + 1,
+                                              filter: SortParameter(
+                                                key: UniqueKey(),
+                                                id: maxId +
+                                                    1, // create unused ID
+                                                onDelete: _deleteFilterWidget,
+                                              )));
                                         });
                                         maxId++;
-                                        print(maxId);
                                       },
                                       child: Column(
                                         mainAxisAlignment:
@@ -336,7 +367,9 @@ class _SortingPageState extends State<SortingPage> {
                           ],
                         ),
                       ),
-                      ...filterWidgets, // dynamically updated by list
+                      ...filterWidgets
+                          .map((filterData) => filterData.filter)
+                          .toList(), // dynamically updated by list
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -349,11 +382,13 @@ class _SortingPageState extends State<SortingPage> {
                                     backgroundColor:
                                         MaterialStateProperty.all<Color>(theme
                                             .colorScheme.primaryContainer)),
-                                onPressed: () async {
-                                  final result = await querySpotify("Lorde", "artist", 10, 0);
-                                  print(result.toString());
+                                onPressed: () {
+                                  // final result = await querySpotify(
+                                  //     "Lorde", "artist", 10, 0);
+                                  // print(result.toString());
+                                  populateSongs(filterWidgets);
                                 },
-                                child: Text("Run Filters"),
+                                child: Text("Use Filters"),
                               ),
                             ),
                           ),
