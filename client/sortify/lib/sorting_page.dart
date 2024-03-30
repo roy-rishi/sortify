@@ -1,3 +1,4 @@
+import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,7 +11,29 @@ import 'app_state.dart';
 
 final storage = FlutterSecureStorage();
 
-Future<void> populateSongs(List<SortParameter> filters) async {
+List<SongRow> tracksToSort = [];
+
+class SongRow extends StatelessWidget {
+  const SongRow({super.key, required this.name, required this.album});
+
+  final String name;
+  final String album;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 60,
+      child: Card(
+          clipBehavior: Clip.hardEdge,
+          // color: theme.colorScheme.secondaryContainer,
+          child: Column(
+            children: [Text(name), Text(album)],
+          )),
+    );
+  }
+}
+
+Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
   SongManager selections = SongManager();
 
   // load names of selections into object
@@ -27,19 +50,66 @@ Future<void> populateSongs(List<SortParameter> filters) async {
     final artistData =
         jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
             as Map<String, dynamic>;
-    artist.id = artistData["artists"]["items"][0]["uri"];
+    artist.id = artistData["artists"]["items"][0]["id"];
     artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
     artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
+    // fetch and parse api data for artist albums
+    final artistAlbumData =
+        jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
+            as Map<String, dynamic>;
+    for (int i = 0; i < artistAlbumData["items"].length; i++) {
+      bool sameArtist = false;
+      for (int j = 0; j < artistAlbumData["items"][i]["artists"].length; j++) {
+        if (artistAlbumData["items"][i]["artists"][j]["id"] == artist.id) {
+          sameArtist = true;
+        }
+      }
+      if (!sameArtist) {
+        break;
+      }
+      final newAlbum = Album(name: artistAlbumData["items"][i]["name"]);
+      newAlbum.id = artistAlbumData["items"][i]["id"];
+      artist.albums.add(newAlbum);
+    }
   }
-  // fetch and parse api data for artists
+  // fetch and parse api data for albums
   for (final album in selections.albums) {
     final albumData = jsonDecode(await querySpotify(album.name, "album", 1, 0))
         as Map<String, dynamic>;
     album.id = albumData["albums"]["items"][0]["id"];
     album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
     album.releaseDate = albumData["albums"]["items"][0]["release_date"];
-    // fetch and parse album tracks
   }
+  // fetch and parse album tracks
+  List<Album> allAlbums = selections.albums;
+  for (final artist in selections.artists) {
+    for (final album in artist.albums) {
+      allAlbums.add(album);
+    }
+  }
+  for (final album in allAlbums) {
+    final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0))
+        as Map<String, dynamic>;
+
+    for (int i = 0; i < tracksData["items"].length; i++) {
+      final track = tracksData["items"][i];
+      album.tracks.add(Track(
+          name: track["name"],
+          albumName: album.name,
+          id: track["id"],
+          releaseDate: album.releaseDate,
+          imageUrl: album.imageUrl));
+      print(track["name"]);
+      print(track["id"]);
+    }
+  }
+
+  List<Track> finalTracks = selections.computeAllTracks();
+  List<SongRow> songRows = [];
+  for (final track in finalTracks) {
+    songRows.add(SongRow(name: track.name, album: track.albumName));
+  }
+  return songRows;
 }
 
 // track holding classes
@@ -54,6 +124,24 @@ class SongManager {
   void addAlbum(Album album) {
     albums.add(album);
   }
+
+  List<Track> computeAllTracks() {
+    List<Track> allTracks = [];
+
+    for (final artist in artists) {
+      for (final album in artist.albums) {
+        for (final track in album.tracks) {
+          allTracks.add(track);
+        }
+      }
+    }
+    for (final album in albums) {
+      for (final track in album.tracks) {
+        allTracks.add(track);
+      }
+    }
+    return allTracks;
+  }
 }
 
 class Artist {
@@ -61,7 +149,7 @@ class Artist {
   int followers = -1;
   String _imageUrl = "";
   String id = "";
-  List<Album> _albums = [];
+  List<Album> albums = [];
 
   Artist({
     required this.name,
@@ -97,12 +185,14 @@ class Album {
 
 class Track {
   String name;
+  String albumName;
   String releaseDate;
   String imageUrl;
   String id;
 
   Track({
     required this.name,
+    required this.albumName,
     required this.releaseDate,
     required this.imageUrl,
     required this.id,
@@ -123,6 +213,59 @@ Future<String> querySpotify(
   };
   // USE Uri.https FOR HTTPS
   final uri = Uri.http("localhost:3004", "/spotify/search/", queryParameters);
+  final storedJwt = await storage.read(key: "jwt");
+  final response = await http.post(
+    uri,
+    headers: <String, String>{
+      HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return response.body;
+  }
+  if (response.statusCode == 401) {
+    throw UnimplementedError("Login Popup");
+  }
+  throw Exception(response.body);
+}
+
+Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
+  final queryParameters = {
+    "id": id,
+    "limit": limit.toString(),
+    "offset": offset.toString(),
+  };
+  // USE Uri.https FOR HTTPS
+  final uri =
+      Uri.http("localhost:3004", "/spotify/artist-albums/", queryParameters);
+  final storedJwt = await storage.read(key: "jwt");
+  final response = await http.post(
+    uri,
+    headers: <String, String>{
+      HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return response.body;
+  }
+  if (response.statusCode == 401) {
+    throw UnimplementedError("Login Popup");
+  }
+  throw Exception(response.body);
+}
+
+Future<String> albumTracksSpotify(String id, int limit, int offset) async {
+  print(id);
+  final queryParameters = {
+    "id": id,
+    "limit": limit.toString(),
+    "offset": offset.toString(),
+  };
+  // USE Uri.https FOR HTTPS
+  final uri =
+      Uri.http("localhost:3004", "/spotify/album-tracks/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
@@ -360,11 +503,16 @@ class _SortingPageState extends State<SortingPage> {
                                       backgroundColor:
                                           MaterialStateProperty.all<Color>(theme
                                               .colorScheme.primaryContainer)),
-                                  onPressed: () {
-                                    // final result = await querySpotify(
-                                    //     "Lorde", "artist", 10, 0);
-                                    // print(result.toString());
-                                    populateSongs(filterWidgets);
+                                  onPressed: () async {
+                                    final songs =
+                                        await calculateSongs(filterWidgets);
+                                    setState(() {
+                                      tracksToSort.clear();
+                                      for (final song in songs) {
+                                        tracksToSort.add(song);
+                                        print(song.name);
+                                      }
+                                    });
                                   },
                                   child: Text("Use Filters"),
                                 ),
@@ -380,27 +528,8 @@ class _SortingPageState extends State<SortingPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(8),
                     children: <Widget>[
-                      SizedBox(
-                        height: 60,
-                        child: Card(
-                            clipBehavior: Clip.hardEdge,
-                            color: theme.colorScheme.secondaryContainer,
-                            child: Column(
-                              children: [Text("The Lovue"), Text("Lorde")],
-                            )),
-                      ),
-                      SizedBox(
-                        height: 60,
-                        child: Card(
-                            clipBehavior: Clip.hardEdge,
-                            color: theme.colorScheme.secondaryContainer,
-                            child: Column(
-                              children: [
-                                Text("Bite Me"),
-                                Text("Avril Lavigne")
-                              ],
-                            )),
-                      ),
+                      // ADD THE SONGS HERE
+                      ...tracksToSort,
                     ],
                   ),
                 ),
