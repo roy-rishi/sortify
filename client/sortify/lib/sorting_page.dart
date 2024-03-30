@@ -1,22 +1,44 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io';
+import 'dart:convert';
 
 import 'app_state.dart';
 
 final storage = FlutterSecureStorage();
 
-void populateSongs(List<SortParameter> filters) {
+Future<void> populateSongs(List<SortParameter> filters) async {
+  SongManager selections = SongManager();
+
+  // load names of selections into object
   for (int i = 0; i < filters.length; i++) {
     SortParameter filter = filters[i];
-    print("$i");
-    print(filter.typeSelected);
-    print(filter.actionSelected);
-    print(filter.valueController.text);
+    if (filter.typeSelected == "Artist") {
+      selections.addArtist(Artist(name: filter.valueController.text));
+    } else if (filter.typeSelected == "Album") {
+      selections.addAlbum(Album(name: filter.valueController.text));
+    }
+  }
+  // fetch and parse api data for artists
+  for (final artist in selections.artists) {
+    final artistData =
+        jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
+            as Map<String, dynamic>;
+    artist.id = artistData["artists"]["items"][0]["uri"];
+    artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
+    artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
+  }
+  // fetch and parse api data for artists
+  for (final album in selections.albums) {
+    final albumData = jsonDecode(await querySpotify(album.name, "album", 1, 0))
+        as Map<String, dynamic>;
+    album.id = albumData["albums"]["items"][0]["id"];
+    album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
+    album.releaseDate = albumData["albums"]["items"][0]["release_date"];
+    // fetch and parse album tracks
   }
 }
 
@@ -38,7 +60,7 @@ class Artist {
   String name;
   int followers = -1;
   String _imageUrl = "";
-  String _spotifyUri = "";
+  String id = "";
   List<Album> _albums = [];
 
   Artist({
@@ -53,41 +75,23 @@ class Artist {
     throw ArgumentError("Image URL is not valid");
   }
 
-  set spotifyUri(String uri) {
-    if (_validateUri(uri)) {
-      _spotifyUri = uri;
-      return;
-    }
-    throw ArgumentError("Artist URI is not valid");
-  }
-
   static bool _validateUrl(String url) {
     // TODO: VERIFY REGEX MATCHING
     final RegExp urlRegex =
         RegExp(r"^(?:https:|http:)\/\/i\.scdn\.co\/image\/[\w]+$");
     return urlRegex.hasMatch(url);
   }
-
-  static bool _validateUri(String uri) {
-    // TODO: VERIFY REGEX MATCHING
-    RegExp regex = RegExp(r"^spotify:artist:[\w]+$");
-    return regex.hasMatch(uri);
-  }
 }
 
 class Album {
   String name;
-  String releaseDate;
-  String imageUrl;
-  String spotifyUri;
-  List<Track> tracks;
+  String releaseDate = "";
+  String imageUrl = "";
+  String id = "";
+  List<Track> tracks = [];
 
   Album({
     required this.name,
-    required this.releaseDate,
-    required this.imageUrl,
-    required this.spotifyUri,
-    required this.tracks,
   });
 }
 
@@ -95,13 +99,13 @@ class Track {
   String name;
   String releaseDate;
   String imageUrl;
-  String spotifyUri;
+  String id;
 
   Track({
     required this.name,
     required this.releaseDate,
     required this.imageUrl,
-    required this.spotifyUri,
+    required this.id,
   });
 }
 
@@ -169,7 +173,7 @@ class _SortParameterState extends State<SortParameter> {
                         Padding(
                           padding: const EdgeInsets.only(left: 25),
                           child: SizedBox(
-                            width: 260,
+                            width: 230,
                             child: TextField(
                               controller: widget.valueController,
                               decoration: InputDecoration(labelText: "Name"),
@@ -307,7 +311,7 @@ class _SortingPageState extends State<SortingPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
-                              height: 100,
+                              height: 98,
                               child: AspectRatio(
                                 aspectRatio: 1 / 1,
                                 child: Card(
@@ -343,30 +347,31 @@ class _SortingPageState extends State<SortingPage> {
                         ),
                       ),
                       ...filterWidgets, // dynamically updated by list
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: SizedBox(
-                              height: 45,
-                              child: ElevatedButton(
-                                style: ButtonStyle(
-                                    backgroundColor:
-                                        MaterialStateProperty.all<Color>(theme
-                                            .colorScheme.primaryContainer)),
-                                onPressed: () {
-                                  // final result = await querySpotify(
-                                  //     "Lorde", "artist", 10, 0);
-                                  // print(result.toString());
-                                  populateSongs(filterWidgets);
-                                },
-                                child: Text("Use Filters"),
+                      if (filterWidgets.isNotEmpty)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SizedBox(
+                                height: 45,
+                                child: ElevatedButton(
+                                  style: ButtonStyle(
+                                      backgroundColor:
+                                          MaterialStateProperty.all<Color>(theme
+                                              .colorScheme.primaryContainer)),
+                                  onPressed: () {
+                                    // final result = await querySpotify(
+                                    //     "Lorde", "artist", 10, 0);
+                                    // print(result.toString());
+                                    populateSongs(filterWidgets);
+                                  },
+                                  child: Text("Use Filters"),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      )
+                          ],
+                        )
                     ],
                   ),
                 ),
