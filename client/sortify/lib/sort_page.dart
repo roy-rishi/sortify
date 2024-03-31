@@ -57,19 +57,17 @@ class SongCard extends StatelessWidget {
                 Image.network(track.imageUrl, fit: BoxFit.fitWidth),
                 Padding(
                   padding: const EdgeInsets.only(top: 12, left: 12, right: 12),
-                  child: Expanded(
-                    child: RichText(
-                      // Restrict to single line
-                      overflow: TextOverflow.fade,
-                      maxLines: 1,
-                      softWrap: false,
-                      text: TextSpan(
-                        children: <TextSpan>[
-                          TextSpan(text: track.name, style: nameStyle),
-                          TextSpan(
-                              text: " – ${track.albumName}", style: albumStyle),
-                        ],
-                      ),
+                  child: RichText(
+                    // Restrict to single line
+                    overflow: TextOverflow.fade,
+                    maxLines: 1,
+                    softWrap: false,
+                    text: TextSpan(
+                      children: <TextSpan>[
+                        TextSpan(text: track.name, style: nameStyle),
+                        TextSpan(
+                            text: " – ${track.albumName}", style: albumStyle),
+                      ],
                     ),
                   ),
                 ),
