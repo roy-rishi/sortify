@@ -1,4 +1,3 @@
-import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'dart:convert';
 
+import 'sort_page.dart';
 import 'app_state.dart';
 
 final storage = FlutterSecureStorage();
@@ -43,34 +43,35 @@ class SongRow extends StatelessWidget {
     return SizedBox(
       height: 65,
       child: Card(
-          clipBehavior: Clip.hardEdge,
-          // color: theme.colorScheme.secondaryContainer,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 9),
-                    child: image,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // align text
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(name, style: nameStyle),
-                      Text(artist, style: bodyStyle),
-                    ],
-                  ),
-                ],
-              ),
-              Text(albumName, style: bodyStyle),
-              Padding(
-                padding: const EdgeInsets.only(right: 30),
-                child: Text(releaseDate, style: bodyStyle),
-              ),
-            ],
-          )),
+        clipBehavior: Clip.hardEdge,
+        // color: theme.colorScheme.secondaryContainer,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 9),
+                  child: image,
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, // align text
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(name, style: nameStyle),
+                    Text(artist, style: bodyStyle),
+                  ],
+                ),
+              ],
+            ),
+            Text(albumName, style: bodyStyle),
+            Padding(
+              padding: const EdgeInsets.only(right: 30),
+              child: Text(releaseDate, style: bodyStyle),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -94,7 +95,7 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
             as Map<String, dynamic>;
     artist.id = artistData["artists"]["items"][0]["id"];
     artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
-    artist.imageUrl = artistData["artists"]["items"][0]["images"][1]["url"];
+    artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
     // fetch and parse api data for artist albums
     final artistAlbumData =
         jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
@@ -112,7 +113,7 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
       final newAlbum = Album(name: artistAlbumData["items"][i]["name"]);
       newAlbum.id = artistAlbumData["items"][i]["id"];
       newAlbum.artistName = artist.name;
-      newAlbum.imageUrl = artistAlbumData["items"][i]["images"][1]["url"];
+      newAlbum.imageUrl = artistAlbumData["items"][i]["images"][0]["url"];
       newAlbum.releaseDate = artistAlbumData["items"][i]["release_date"];
       artist.albums.add(newAlbum);
     }
@@ -445,14 +446,14 @@ class _SortParameterState extends State<SortParameter> {
   }
 }
 
-class SortingPage extends StatefulWidget {
-  const SortingPage({super.key});
+class FilterPage extends StatefulWidget {
+  const FilterPage({super.key});
 
   @override
-  State<SortingPage> createState() => _SortingPageState();
+  State<FilterPage> createState() => _FilterPageState();
 }
 
-class _SortingPageState extends State<SortingPage> {
+class _FilterPageState extends State<FilterPage> {
   // prevent duplicate IDs
   var maxId = 0;
   // remove filter widget
@@ -602,8 +603,7 @@ class _SortingPageState extends State<SortingPage> {
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(18),
-                                  child: Text("Getting songs from Spotify",
-                                      style: theme.textTheme.headlineSmall),
+                                  child: Text("Getting songs from Spotify"),
                                 ),
                               ],
                             ),
@@ -629,7 +629,7 @@ class _SortingPageState extends State<SortingPage> {
                                   onPressed: () {
                                     appState.updatePageIndex(6);
                                   },
-                                  child: Text("Continue"),
+                                  child: Text("Start Sorting"),
                                 ),
                               ),
                             ),

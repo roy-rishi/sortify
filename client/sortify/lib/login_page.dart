@@ -124,7 +124,6 @@ class _LoginPageState extends State<LoginPage> {
                 } else if (snapshot.hasError) {
                   return Text("Error: ${snapshot.error}");
                 }
-                // Return an empty Container as a fallback
                 return Container();
               },
             ),
