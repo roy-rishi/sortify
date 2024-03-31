@@ -13,7 +13,7 @@ const app = express();
 const PORT = 3004;
 
 const corsOptions = {
-    origin: "http://localhost:8000", // allow access to this origin
+    origin: "*", // allow access to this origin
     optionsSuccessStatus: 200 // legacy browsers
 };
 
