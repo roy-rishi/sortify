@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'sort_page.dart';
 import 'app_state.dart';
+import 'constants.dart';
 
 final storage = FlutterSecureStorage();
 
@@ -159,7 +160,9 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
     final image = Image.network(track.imageUrl);
     songRows.add(SongRow(track: track, image: image));
   }
-  return songRows;
+  // remove duplicates
+  var withoutDuplicates = songRows.toSet().toList();
+  return withoutDuplicates;
 }
 
 // track holding classes
@@ -265,7 +268,7 @@ Future<String> querySpotify(
     "offset": offset.toString(),
   };
   // USE Uri.https FOR HTTPS
-  final uri = Uri.http("localhost:3004", "/spotify/search/", queryParameters);
+  final uri = Uri.http(SERVER_BASE_URL, "/spotify/search/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
@@ -291,7 +294,7 @@ Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
   };
   // USE Uri.https FOR HTTPS
   final uri =
-      Uri.http("localhost:3004", "/spotify/artist-albums/", queryParameters);
+      Uri.http(SERVER_BASE_URL, "/spotify/artist-albums/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
@@ -318,7 +321,7 @@ Future<String> albumTracksSpotify(String id, int limit, int offset) async {
   };
   // USE Uri.https FOR HTTPS
   final uri =
-      Uri.http("localhost:3004", "/spotify/album-tracks/", queryParameters);
+      Uri.http(SERVER_BASE_URL, "/spotify/album-tracks/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,

@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
+import 'package:sortify/constants.dart';
 import 'dart:convert';
 
 import 'app_state.dart';
 
 Future<String> verifyEmail(String email) async {
   final response = await http.post(
-    Uri.parse("http://localhost:3004/verify-email"),
+    Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/verify-email"),
     headers: <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
     },
@@ -27,7 +28,7 @@ Future<String> verifyEmail(String email) async {
 
 Future<String> createUser(String pass, String name, String token) async {
   final response = await http.post(
-    Uri.parse("http://localhost:3004/create-user"),
+    Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/create-user"),
     headers: <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
       HttpHeaders.authorizationHeader: "Bearer $token",

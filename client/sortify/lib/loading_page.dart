@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sortify/constants.dart';
 
 import 'app_state.dart';
 
@@ -15,7 +16,7 @@ Future<String> verifyReq() async {
   // print(storedJwt);
 
   final response = await http.get(
-    Uri.parse("http://localhost:3004/verify"),
+    Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/verify"),
     headers: <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
       HttpHeaders.authorizationHeader: "Bearer $storedJwt",

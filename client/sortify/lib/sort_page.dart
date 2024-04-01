@@ -93,9 +93,12 @@ class SortPage extends StatefulWidget {
 
 class _SortPageState extends State<SortPage> {
   int sortCount = 1;
+  int left = 0;
+  int right = tracksToSort.length - 1;
 
   @override
   Widget build(BuildContext context) {
+    var appState = context.watch<AppState>();
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
@@ -114,19 +117,47 @@ class _SortPageState extends State<SortPage> {
               children: [
                 Column(
                   children: [
-                    SongCard(track: tracksToSort[0].track),
+                    SongCard(track: tracksToSort[left].track),
                     Padding(
                       padding: const EdgeInsets.only(top: 20),
-                      child: SongButton(),
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (right <= 0) {
+                              appState.updatePageIndex(7);
+                            }
+                            setState(() {
+                              right -= 1;
+                              sortCount++;
+                            });
+                          },
+                          child: Text("Select"),
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 Column(
                   children: [
-                    SongCard(track: tracksToSort[1].track),
+                    SongCard(track: tracksToSort[right].track),
                     Padding(
                       padding: const EdgeInsets.only(top: 20),
-                      child: SongButton(),
+                      child: SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (left >= tracksToSort.length - 1) {
+                              appState.updatePageIndex(7);
+                            }
+                            setState(() {
+                              left += 1;
+                              sortCount++;
+                            });
+                          },
+                          child: Text("Select"),
+                        ),
+                      ),
                     ),
                   ],
                 ),

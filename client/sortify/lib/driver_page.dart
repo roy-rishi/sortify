@@ -8,6 +8,7 @@ import 'signup_page.dart';
 import 'home_page.dart';
 import 'filter_page.dart';
 import 'sort_page.dart';
+import 'results_page.dart';
 
 class DriverPage extends StatefulWidget {
   @override
@@ -35,6 +36,8 @@ class _DriverPageState extends State<DriverPage> {
         page = const Text("Your Sorts");
       case 6:
         page = SortPage();
+      case 7:
+        page = ResultsPage(songsList: tracksToSort, );
       default:
         throw UnimplementedError("No widget for $appState.pageIndex");
     }
