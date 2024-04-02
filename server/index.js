@@ -8,14 +8,47 @@ const { exec } = require('child_process');
 var cors = require('cors');
 const axios = require('axios');
 const qs = require('querystring');
+const fs = require('fs');
+const https = require('https');
+const path = require('path');
 
 const app = express();
 const PORT = 3004;
+
+var options = {
+    key: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/fullchain.pem')
+};
 
 const corsOptions = {
     origin: "*", // allow access to this origin
     optionsSuccessStatus: 200 // legacy browsers
 };
+
+// app.use(function (req, res, next) {
+
+//     // Website you wish to allow to connect
+//     res.setHeader('Access-Control-Allow-Origin', 'https://sortify.rishiroy.com');
+
+//     // Request methods you wish to allow
+//     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+
+//     // Request headers you wish to allow
+//     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+//     // Set to true if you need the website to include cookies in the requests sent
+//     // to the API (e.g. in case you use sessions)
+//     res.setHeader('Access-Control-Allow-Credentials', true);
+
+//     // Pass to next layer of middleware
+//     next();
+// });
+
+// start server
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+https.createServer(options, app).listen(PORT);
 
 function createJWT(user, expiration_mins) {
     // add identifying information
@@ -44,13 +77,14 @@ function sendEmail(address, subject, body) {
 // open db
 let db = new sqlite3.Database('./db/main.db');
 
-// start server
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors(corsOptions));
-app.listen((PORT), () => {
-    console.log(`server is running on port ${PORT}`);
-});
+// app.listen((PORT), () => {
+//     console.log(`server is running on port ${PORT}`);
+// });
+
+app.use(express.static(path.join(__dirname, "public")));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, "public/index.html"))
+})
 
 // validate login request, provide jwt token
 app.post('/login', (req, res) => {

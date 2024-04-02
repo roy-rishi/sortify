@@ -4,5 +4,6 @@ test/
 .env
 venv/
 results.csv
+public/
 
 .DS_Store
