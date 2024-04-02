@@ -1,2 +1,2 @@
-const SERVER_BASE_URL = "localhost:3004";
-const HTTP_PROTOCOL = "http://";
+const SERVER_BASE_URL = "sortify.rishiroy.com";
+const HTTP_PROTOCOL = "https://";

@@ -268,7 +268,7 @@ Future<String> querySpotify(
     "offset": offset.toString(),
   };
   // USE Uri.https FOR HTTPS
-  final uri = Uri.http(SERVER_BASE_URL, "/spotify/search/", queryParameters);
+  final uri = Uri.https(SERVER_BASE_URL, "/spotify/search/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
@@ -294,7 +294,7 @@ Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
   };
   // USE Uri.https FOR HTTPS
   final uri =
-      Uri.http(SERVER_BASE_URL, "/spotify/artist-albums/", queryParameters);
+      Uri.https(SERVER_BASE_URL, "/spotify/artist-albums/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
@@ -321,7 +321,7 @@ Future<String> albumTracksSpotify(String id, int limit, int offset) async {
   };
   // USE Uri.https FOR HTTPS
   final uri =
-      Uri.http(SERVER_BASE_URL, "/spotify/album-tracks/", queryParameters);
+      Uri.https(SERVER_BASE_URL, "/spotify/album-tracks/", queryParameters);
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     uri,
