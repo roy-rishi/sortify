@@ -1,5 +1,6 @@
 import random
 import pandas as pd
+import bisect
 
 # return a dict{array size, array} of random integers 1 to 1000
 def generateTestCases():
@@ -40,7 +41,7 @@ def insertionSort(arr):
             j -= 1
         arr[j + 1] = key
 
-# implementation of the merge sort algorithm
+# <merge sort definitions>
 def mergeSort(arr, l, r):
     if l < r:
         m = l + (r - l) // 2
@@ -53,14 +54,8 @@ def merge(arr, l, m, r):
     n1 = m - l + 1
     n2 = r - m
  
-    L = [0] * (n1)
-    R = [0] * (n2)
- 
-    for i in range(0, n1):
-        L[i] = arr[l + i]
- 
-    for j in range(0, n2):
-        R[j] = arr[m + 1 + j]
+    L = arr[l : m + 1]
+    R = arr[m + 1 : r + 1]
  
     i = 0
     j = 0
@@ -88,6 +83,71 @@ def merge(arr, l, m, r):
 def startMerge(arr):
     mergeSort(arr, 0, len(arr) - 1)
 
+# </merge sort definitions>
+    
+# <merge-insertion sort definitions>
+class Pair:
+    def __init__(self, small, large):
+        self.small = small
+        self.large = large
+
+    def __lt__(self, other):
+        # show ui comparison in product
+        return self.large < other.large
+
+    def __str__(self):
+        return f"({self.small}, {self.large})"
+    
+def genJacobsthal(n):
+    return (2 ** n - (-1) ** n) // 3
+
+# return location of insertion
+def binarySearch(arr, low, high, x):
+
+    if high >= low:
+        mid = (high + low) // 2
+ 
+        if compareItems(x, arr[mid]):
+            return binarySearch(arr, low, mid - 1, x)
+ 
+        else:
+            return binarySearch(arr, mid + 1, high, x)
+ 
+    else:
+        return low
+
+def mergeInsertionSort(arr):
+    # sort pairs in-place
+    for i in range(0, len(arr) - 1, 2):
+        if compareItems(arr[i + 1], arr[i]): # swap if necessary
+            arr[i], arr[i + 1] = arr[i + 1], arr[i]
+
+    # create Pair objects
+    pairs = []
+    for i in range(0, len(arr) - 1, 2):
+        pairs.append(Pair(arr[i], arr[i + 1]))
+
+    # sort pairs in-place by large value
+    mergeSort(pairs, 0, len(pairs) - 1)
+
+    # init main and pend chains
+    main = [_.large for _ in pairs]
+    pend = [_.small for _ in pairs]
+    if len(arr) % 2 != 0:
+        pend.append(arr[-1])
+    # print("main", main)
+    # print("pend", pend)
+
+    # insert pend elements into main chain
+    S = []
+    for element in main:
+        insertion_point = bisect.bisect(S, element)
+        S.insert(insertion_point, element)
+
+    # print("\ndone", main)
+# </merge-insertion sort definitions>
+
+
 # the count of comparisons that functions may increment
 # or reset, as if passed by reference as a parameter
 count = 0
@@ -100,7 +160,8 @@ def runAllTestCases():
     for i in range(100):
         testCases = generateTestCases()
         # results = runTestCases(testCases, insertionSort) # insertion sort
-        results = runTestCases(testCases, startMerge) # merge sort
+        # results = runTestCases(testCases, startMerge) # merge sort
+        results = runTestCases(testCases, mergeInsertionSort) # merge-insertion sort
         resultsList.append(results)
     return resultsList
 
