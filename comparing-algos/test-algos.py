@@ -139,10 +139,17 @@ def mergeInsertionSort(arr):
     # print("pend", pend)
 
     # insert pend elements into main chain
-    S = []
-    for element in main:
-        insertion_point = bisect.bisect(S, element)
-        S.insert(insertion_point, element)
+    lastJ = 0
+    added = 0
+    while added < len(pend):
+        # start next at next jacobsthal, not exceeding length of pend array
+        nextJ = min(genJacobsthal(added + 2), len(pend))
+        for i in range(0, nextJ - lastJ):
+            pendIndex = nextJ - i - 1
+            insertIndex = binarySearch(main, 0, added + pendIndex - 1, pend[pendIndex])
+            main.insert(insertIndex, pend[pendIndex])
+            added += 1
+        lastJ = nextJ
 
     # print("\ndone", main)
 # </merge-insertion sort definitions>

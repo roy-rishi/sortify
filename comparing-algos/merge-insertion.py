@@ -1,5 +1,3 @@
-import bisect
-
 count = 0
 def compareItems(a, b):
     global count
@@ -93,17 +91,24 @@ def mergeInsertionSort(arr):
     pend = [_.small for _ in pairs]
     if len(arr) % 2 != 0:
         pend.append(arr[-1])
-    print("main", main)
-    print("pend", pend)
+    # print("main", main)
+    # print("pend", pend)
 
     # insert pend elements into main chain
-    S = []
-    for element in main:
-        insertion_point = bisect.bisect(S, element)
-        S.insert(insertion_point, element)
+    lastJ = 0
+    added = 0
+    while added < len(pend):
+        # start next at next jacobsthal, not exceeding length of pend array
+        nextJ = min(genJacobsthal(added + 2), len(pend))
+        for i in range(0, nextJ - lastJ):
+            pendIndex = nextJ - i - 1
+            insertIndex = binarySearch(main, 0, added + pendIndex - 1, pend[pendIndex])
+            main.insert(insertIndex, pend[pendIndex])
+            added += 1
+        lastJ = nextJ
 
-    print("\ndone", S)
+    print("\ndone", main)
 
 # arr = [5, 2, 3, 1, 4, 7, 6]
-arr = [45, 87, 23, 10, 56, 72, 35, 91, 18, 63, 29, 5, 82, 47, 14]
+arr = [45, 87, 23, 10, 56, 72, 35, 91, 18, 63, 29, 5, 82, 47]
 mergeInsertionSort(arr)
