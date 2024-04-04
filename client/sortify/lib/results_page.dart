@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:provider/provider.dart';
 
 import 'filter_page.dart';
-import 'app_state.dart';
 
 class ResultsPage extends StatelessWidget {
   ResultsPage({super.key, required this.songsList});

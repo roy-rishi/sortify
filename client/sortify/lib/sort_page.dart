@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 import 'filter_page.dart';
@@ -6,8 +8,6 @@ import 'app_state.dart';
 
 class SongButton extends StatelessWidget {
   const SongButton({super.key});
-
-  // final Function() onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class SongCard extends StatelessWidget {
     final nameStyle = theme.textTheme.labelLarge!.copyWith(
       // color: theme.colorScheme.secondary,
       fontWeight: FontWeight.w700,
-      fontSize: 17,
+      fontSize: 17.5,
     );
     final albumStyle = theme.textTheme.labelLarge!.copyWith(
       // color: theme.colorScheme.secondary,
@@ -44,7 +44,7 @@ class SongCard extends StatelessWidget {
     );
 
     return Tooltip(
-      message: "${track.name} of ${track.albumName} by ${track.artistName}\n",
+      message: "${track.name} - ${track.albumName}, ${track.artistName}\n",
       child: SizedBox(
         width: 300,
         child: Card(
@@ -55,7 +55,7 @@ class SongCard extends StatelessWidget {
               children: [
                 Image.network(track.imageUrl, fit: BoxFit.fitWidth),
                 Padding(
-                  padding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+                  padding: const EdgeInsets.only(top: 14, left: 12, right: 12),
                   child: RichText(
                     // Restrict to single line
                     overflow: TextOverflow.fade,
@@ -71,7 +71,7 @@ class SongCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 12),
+                  padding: const EdgeInsets.only(top: 4, bottom: 18),
                   child: Text(track.artistName, style: artistSyle),
                 ),
               ],

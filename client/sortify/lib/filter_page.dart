@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:collection';
+import 'dart:math';
 
 import 'app_state.dart';
 import 'constants.dart';
@@ -42,34 +46,49 @@ class SongRow extends StatelessWidget {
 
     return SizedBox(
       height: 65,
-      child: Card(
-        clipBehavior: Clip.hardEdge,
-        // color: theme.colorScheme.secondaryContainer,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 9),
-                  child: image,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 40),
+        child: Card(
+          clipBehavior: Clip.hardEdge,
+          // color: theme.colorScheme.secondaryContainer,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 9),
+                    child: Tooltip(
+                        message: "$name - $albumName, $artist", child: image),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, // align text
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(name, style: nameStyle),
+                      Text(artist, style: bodyStyle),
+                    ],
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 50, right: 50),
+                  child: Center(
+                    child: Text(albumName,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: bodyStyle),
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // align text
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(name, style: nameStyle),
-                    Text(artist, style: bodyStyle),
-                  ],
-                ),
-              ],
-            ),
-            Text(albumName, style: bodyStyle),
-            Padding(
-              padding: const EdgeInsets.only(right: 30),
-              child: Text(releaseDate, style: bodyStyle),
-            ),
-          ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 30),
+                child: Text(releaseDate, style: bodyStyle),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -154,14 +173,15 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
   }
 
   List<Track> finalTracks = selections.computeAllTracks();
+  // remove duplicates
+  finalTracks = LinkedHashSet<Track>.from(finalTracks).toList();
+
   List<SongRow> songRows = [];
   for (final track in finalTracks) {
     final image = Image.network(track.imageUrl);
     songRows.add(SongRow(track: track, image: image));
   }
-  // remove duplicates
-  var withoutDuplicates = songRows.toSet().toList();
-  return withoutDuplicates;
+  return songRows;
 }
 
 // track holding classes
@@ -252,6 +272,13 @@ class Track {
     required this.imageUrl,
     required this.id,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      other is Track && name == other.name && artistName == other.artistName;
+
+  @override
+  int get hashCode => Object.hash(name, artistName);
 }
 
 // list of filter widgets
@@ -371,7 +398,7 @@ class _SortParameterState extends State<SortParameter> {
                         Padding(
                           padding: const EdgeInsets.only(left: 25),
                           child: SizedBox(
-                            width: 230,
+                            width: 180,
                             child: TextField(
                               controller: widget.valueController,
                               decoration: InputDecoration(labelText: "Name"),
@@ -479,9 +506,21 @@ class _FilterPageState extends State<FilterPage> {
     return Center(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 40, bottom: 60),
-            child: Text("Configure Sort", style: titleStyle),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: () {
+                  appState.updatePageIndex(3);
+                },
+                icon: Icon(Icons.arrow_back_ios_new_rounded),
+                color: theme.colorScheme.secondary,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 10, top: 40, bottom: 50),
+                child: Text("Configure Sort", style: titleStyle),
+              ),
+            ],
           ),
           Expanded(
             child: Row(
@@ -616,24 +655,31 @@ class _FilterPageState extends State<FilterPage> {
                             child: Text("Edit your filters to include songs")),
                       // if continue button should be displayed
                       if (!calculatingTracksToSort && tracksToSort.isNotEmpty)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Column(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SizedBox(
-                                height: 45,
-                                child: ElevatedButton(
-                                  style: ButtonStyle(
-                                      backgroundColor:
-                                          MaterialStateProperty.all<Color>(theme
-                                              .colorScheme.primaryContainer)),
-                                  onPressed: () {
-                                    appState.updatePageIndex(6);
-                                  },
-                                  child: Text("Start Sorting"),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 45,
+                                  child: ElevatedButton(
+                                    style: ButtonStyle(
+                                        backgroundColor:
+                                            MaterialStateProperty.all<Color>(
+                                                theme.colorScheme
+                                                    .primaryContainer)),
+                                    onPressed: () {
+                                      appState.updatePageIndex(6);
+                                    },
+                                    child: Text("Start Sorting"),
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                  "${tracksToSort.length} Results, Approximately ${tracksToSort.length * log(tracksToSort.length).round()} Battles"),
                             ),
                           ],
                         ),
