@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:sortify/loading_page.dart';
 
 class AppState extends ChangeNotifier {
   String email = "";
 
-  var pageIndex = 0;
-  void updatePageIndex(newIndex) {
-    pageIndex = newIndex;
+  Widget page = LoadingPage();
+  void changePage(nextPage) {
+    page = nextPage;
     notifyListeners();
   }
 

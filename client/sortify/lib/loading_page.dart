@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sortify/constants.dart';
+import 'package:sortify/home_page.dart';
+import 'package:sortify/login_page.dart';
 
 import 'app_state.dart';
 
@@ -83,11 +85,11 @@ class _LoadingPageState extends State<LoadingPage> {
                 } else if (snapshot.hasData) {
                   if (snapshot.data.toString() == "Password required") {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      appState.updatePageIndex(1);
+                      appState.changePage(LoginPage());
                     });
                   } else if (snapshot.data.toString() == "Verified jwt") {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      appState.updatePageIndex(3);
+                      appState.changePage(HomePage());
                     });
                   }
                   return Text(snapshot.data.toString());

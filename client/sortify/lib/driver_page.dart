@@ -20,27 +20,7 @@ class _DriverPageState extends State<DriverPage> {
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
 
-    Widget page;
-    switch (appState.pageIndex) {
-      case 0:
-        page = LoadingPage();
-      case 1:
-        page = LoginPage();
-      case 2:
-        page = SignUpPage();
-      case 3:
-        page = HomePage();
-      case 4:
-        page = FilterPage();
-      case 5:
-        page = const Text("Your Sorts");
-      case 6:
-        page = SortPage();
-      case 7:
-        page = ResultsPage(songsList: tracksToSort, );
-      default:
-        throw UnimplementedError("No widget for $appState.pageIndex");
-    }
+    Widget page = appState.page;
 
     return Scaffold(
       body: page,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:sortify/constants.dart';
+import 'package:sortify/login_page.dart';
 import 'dart:convert';
 
 import 'app_state.dart';
@@ -70,7 +71,7 @@ class SendEmailPanel extends StatelessWidget {
           TextButton(
             onPressed: () {
               print("Returning to login page");
-              appState.updatePageIndex(1);
+              appState.changePage(LoginPage());
             },
             child: Text("Or, Login"),
           ),
@@ -168,7 +169,7 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
             TextButton(
               onPressed: () {
                 print("Returning to login page");
-                appState.updatePageIndex(1);
+                appState.changePage(LoginPage());
               },
               child: Text("Or, Login"),
             ),
@@ -218,7 +219,7 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
                       ScaffoldMessenger.of(context).showSnackBar(snackBar);
                       return;
                     } else {
-                      appState.updatePageIndex(1);
+                      appState.changePage(LoginPage());
                     }
                     return;
                   }

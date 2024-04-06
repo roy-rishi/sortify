@@ -2,22 +2,89 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
+import 'package:sortify/results_page.dart';
+
+import 'dart:math';
 
 import 'filter_page.dart';
 import 'app_state.dart';
 
-class SongButton extends StatelessWidget {
-  const SongButton({super.key});
+class Sort {
+  final List<Track> songs;
+  List<bool> _comparisons = [];
+  int _index = 0;
+  // int _lastIndex = 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: ElevatedButton(
-        onPressed: () {},
-        child: Text("Select"),
-      ),
-    );
+  Sort({
+    required this.songs,
+  });
+
+  // add the result of a comparison use submits
+  void addComparisonResult(bool result) {
+    _comparisons.add(result);
+  }
+
+  // get next pair of comparisons, return full list if sorted
+  List<Track> nextPair() {
+    _index = 0;
+    List<Track> copy = List.from(songs);
+
+    int width = 1;
+    int n = copy.length;
+    while (width < n) {
+      int l = 0;
+      while (l < n) {
+        int r = min(l + (width * 2 - 1), n - 1);
+        int m = min(l + width - 1, n - 1);
+        List<Track>? nextPair = merge(copy, l, m, r);
+        if (nextPair != null) {
+          print(_comparisons);
+          return nextPair;
+        }
+        l += width * 2;
+      }
+      width *= 2;
+    }
+    return copy;
+    // return arr;
+  }
+
+  // merge handler, return next comparison set, if no more, return null
+  List<Track>? merge(List<Track> copy, int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+    List<Track> L = List.from(copy.sublist(l, m + 1));
+    List<Track> R = List.from(copy.sublist(m + 1, r + 1));
+
+    int i = 0, j = 0, k = l;
+    while (i < n1 && j < n2) {
+      if (_index >= _comparisons.length || _comparisons.isEmpty) {
+        return [L[i], R[j]];
+      }
+
+      if (_comparisons[_index]) {
+        copy[k] = L[i];
+        i++;
+      } else {
+        copy[k] = R[j];
+        j++;
+      }
+      k++;
+      _index++;
+    }
+
+    while (i < n1) {
+      copy[k] = L[i];
+      i++;
+      k++;
+    }
+
+    while (j < n2) {
+      copy[k] = R[j];
+      j++;
+      k++;
+    }
+    return null;
   }
 }
 
@@ -92,8 +159,26 @@ class SortPage extends StatefulWidget {
 
 class _SortPageState extends State<SortPage> {
   int sortCount = 1;
-  int left = 0;
-  int right = tracksToSort.length - 1;
+  // int left = 0;
+  // int right = tracksToSort.length - 1;
+  List<Track> sortingList = [];
+  late final Sort sortStates;
+  // tracks to display on sorting page
+  late Track left;
+  late Track right;
+
+  @override
+  void initState() {
+    super.initState();
+    // convert SongRows to Tracks
+    for (SongRow song in tracksToSort) {
+      sortingList.add(song.track);
+    }
+    sortStates = Sort(songs: sortingList);
+    List<Track>? firstPair = sortStates.nextPair();
+    left = firstPair[0];
+    right = firstPair[1];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,20 +201,26 @@ class _SortPageState extends State<SortPage> {
               children: [
                 Column(
                   children: [
-                    SongCard(track: tracksToSort[left].track),
+                    SongCard(track: left),
                     Padding(
                       padding: const EdgeInsets.only(top: 20),
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
                           onPressed: () {
-                            if (right <= 0) {
-                              appState.updatePageIndex(7);
+                            sortStates.addComparisonResult(true);
+                            List<Track> nextPair = sortStates.nextPair();
+                            // if not a set of two, sorting is done
+                            if (nextPair.length == tracksToSort.length) {
+                              appState
+                                  .changePage(ResultsPage(tracks: nextPair));
+                            } else {
+                              setState(() {
+                                left = nextPair[0];
+                                right = nextPair[1];
+                                sortCount++;
+                              });
                             }
-                            setState(() {
-                              right -= 1;
-                              sortCount++;
-                            });
                           },
                           child: Text("Select"),
                         ),
@@ -139,20 +230,26 @@ class _SortPageState extends State<SortPage> {
                 ),
                 Column(
                   children: [
-                    SongCard(track: tracksToSort[right].track),
+                    SongCard(track: right),
                     Padding(
                       padding: const EdgeInsets.only(top: 20),
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
                           onPressed: () {
-                            if (left >= tracksToSort.length - 1) {
-                              appState.updatePageIndex(7);
+                            sortStates.addComparisonResult(false);
+                            List<Track> nextPair = sortStates.nextPair();
+                            // if not a set of two, sorting is done
+                            if (nextPair.length == tracksToSort.length) {
+                              appState
+                                  .changePage(ResultsPage(tracks: nextPair));
+                            } else {
+                              setState(() {
+                                left = nextPair[0];
+                                right = nextPair[1];
+                                sortCount++;
+                              });
                             }
-                            setState(() {
-                              left += 1;
-                              sortCount++;
-                            });
                           },
                           child: Text("Select"),
                         ),

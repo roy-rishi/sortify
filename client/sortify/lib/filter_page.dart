@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sortify/home_page.dart';
+import 'package:sortify/sort_page.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:collection';
@@ -511,7 +513,7 @@ class _FilterPageState extends State<FilterPage> {
             children: [
               IconButton(
                 onPressed: () {
-                  appState.updatePageIndex(3);
+                  appState.changePage(HomePage());
                 },
                 icon: Icon(Icons.arrow_back_ios_new_rounded),
                 color: theme.colorScheme.secondary,
@@ -669,7 +671,7 @@ class _FilterPageState extends State<FilterPage> {
                                                 theme.colorScheme
                                                     .primaryContainer)),
                                     onPressed: () {
-                                      appState.updatePageIndex(6);
+                                      appState.changePage(SortPage());
                                     },
                                     child: Text("Start Sorting"),
                                   ),
@@ -679,7 +681,7 @@ class _FilterPageState extends State<FilterPage> {
                             Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
-                                  "${tracksToSort.length} Results, Approximately ${tracksToSort.length * log(tracksToSort.length).round()} Battles"),
+                                  "${tracksToSort.length} Results, Approximately ${(tracksToSort.length * log(tracksToSort.length)).round()} Battles"),
                             ),
                           ],
                         ),

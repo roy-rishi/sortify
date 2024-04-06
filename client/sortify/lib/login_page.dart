@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sortify/constants.dart';
+import 'package:sortify/home_page.dart';
+import 'package:sortify/signup_page.dart';
 
 import 'app_state.dart';
 
@@ -119,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
                   } else if (snapshot.data == "Email not registered") {
                     appState.email = _emailController.text.trim();
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      appState.updatePageIndex(2);
+                      appState.changePage(SignUpPage());
                     });
                   }
                 } else if (snapshot.hasError) {
@@ -145,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                               _passwordController.text.trim())
                           .then((loginStatus) {
                         if (loginStatus) {
-                          appState.updatePageIndex(3);
+                          appState.changePage(HomePage());
                         } else {
                           print("Login failed");
 

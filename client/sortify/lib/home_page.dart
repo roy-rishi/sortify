@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sortify/filter_page.dart';
 
 import 'app_state.dart';
 
@@ -8,11 +9,11 @@ class CardRowItem extends StatelessWidget {
       {super.key,
       required this.text,
       required this.icon,
-      required this.toPageIndex});
+      required this.nextPage});
 
   final String text;
   final IconData icon;
-  final int toPageIndex;
+  final Widget nextPage;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class CardRowItem extends StatelessWidget {
           child: InkWell(
               splashColor: theme.colorScheme.primary,
               onTap: () {
-                appState.updatePageIndex(toPageIndex);
+                appState.changePage(nextPage);
               },
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -96,7 +97,7 @@ class _HomePageState extends State<HomePage> {
                         CardRowItem(
                             text: "Start Round",
                             icon: Icons.play_arrow_outlined,
-                            toPageIndex: 4),
+                            nextPage: FilterPage()),
                       ],
                     ),
                   ),
@@ -116,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                         CardRowItem(
                             text: "Your Sorts",
                             icon: Icons.person_2_outlined,
-                            toPageIndex: 5),
+                            nextPage: const Text("Your Sortszes")),
                         AspectRatio(
                           aspectRatio: 1 / 1,
                           child: Column(
