@@ -402,16 +402,30 @@ app.post('/spotify/album-tracks', async (req, res) => {
     });
 });
 
+// add an incomplete sort to db, requires users and songs
 app.post('/create-sort', (req, res) => {
     console.log("\n/create-sort");
 
-    incomplete_db.run(`INSERT INTO Incomplete(Date) VALUES (?)`, [Date.now(), req.body.users], function (err) {
+    incomplete_db.run(`INSERT INTO Incomplete(Date, Users, Songs) VALUES (?, ?, ?)`, [Date.now(), req.body.users, req.body.songs], function (err) {
         if (err)
             return res.status(500).send(err.message);
         return res.send(this.lastID.toString());
     });
 });
 
+app.get('/get-sort', (req, res) => {
+    console.log("\n/get-sort");
+
+    incomplete_db.get(`SELECT Songs FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
+        if (err)
+            return res.status(500).send(err.message);
+        if (item["Songs"]) {
+            console.log(item["Songs"]);
+            return res.send(item["Songs"]);
+        } else
+            return res.status(400).send("No songs found");
+    });
+});
 
 app.post('/add-comparison', (req, res) => {
     console.log("\n/add-comparison");
