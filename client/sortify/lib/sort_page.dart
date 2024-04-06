@@ -5,15 +5,62 @@ import 'package:provider/provider.dart';
 import 'package:sortify/results_page.dart';
 
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import 'filter_page.dart';
 import 'app_state.dart';
+import 'constants.dart';
+
+// display loading icon until sort data is acquired from server
+class SortPageLoader extends StatelessWidget {
+  final int sortKey;
+
+  const SortPageLoader({Key? key, required this.sortKey}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: loadSort(sortKey),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return Text("Error: ${snapshot.error}");
+        } else {
+          List<Track> tracks = parseTracks(snapshot.data!);
+          return SortPage(sortKey: sortKey, tracks: tracks);
+        }
+      },
+    );
+  }
+
+  List<Track> parseTracks(String songsJson) {
+    // Parse the JSON and convert it to a List<Track>
+    List<dynamic> tracksJson = json.decode(songsJson);
+    List<Track> tracks =
+        tracksJson.map((json) => Track.fromJson(json)).toList();
+    return tracks;
+  }
+}
+
+Future<String> loadSort(int sortKey) async {
+  final response = await http.get(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/get-sort?key=$sortKey"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      });
+
+  if (response.statusCode == 200) {
+    return response.body;
+  }
+  throw Exception(response.body);
+}
 
 class Sort {
   final List<Track> songs;
   List<bool> _comparisons = [];
   int _index = 0;
-  // int _lastIndex = 0;
 
   Sort({
     required this.songs,
@@ -151,7 +198,10 @@ class SongCard extends StatelessWidget {
 }
 
 class SortPage extends StatefulWidget {
-  const SortPage({super.key});
+  const SortPage({super.key, required this.sortKey, required this.tracks});
+
+  final int sortKey;
+  final List<Track> tracks;
 
   @override
   State<SortPage> createState() => _SortPageState();
@@ -159,8 +209,6 @@ class SortPage extends StatefulWidget {
 
 class _SortPageState extends State<SortPage> {
   int sortCount = 1;
-  // int left = 0;
-  // int right = tracksToSort.length - 1;
   List<Track> sortingList = [];
   late final Sort sortStates;
   // tracks to display on sorting page
@@ -170,11 +218,7 @@ class _SortPageState extends State<SortPage> {
   @override
   void initState() {
     super.initState();
-    // convert SongRows to Tracks
-    for (SongRow song in tracksToSort) {
-      sortingList.add(song.track);
-    }
-    sortStates = Sort(songs: sortingList);
+    sortStates = Sort(songs: widget.tracks);
     List<Track>? firstPair = sortStates.nextPair();
     left = firstPair[0];
     right = firstPair[1];

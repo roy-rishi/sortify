@@ -11,11 +11,36 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:collection';
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import 'app_state.dart';
 import 'constants.dart';
 
 final storage = FlutterSecureStorage();
+
+// create a sort, return server-provided id
+Future<int> createSort(String tracksJson) async {
+  final storedJwt = await storage.read(key: "jwt");
+  final response = await http.post(
+    Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/create-sort"),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+      HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+    },
+    body: jsonEncode(<String, String>{
+      "songs": tracksJson,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    return int.parse(response.body);
+  }
+  if (response.statusCode == 401) {
+    throw Exception("Login page");
+  }
+  throw Exception(response.body);
+}
 
 List<SongRow> tracksToSort = [];
 
@@ -281,6 +306,28 @@ class Track {
 
   @override
   int get hashCode => Object.hash(name, artistName);
+
+  Map<String, dynamic> toMap() {
+    return {
+      "name": name,
+      "albumName": albumName,
+      "artistName": artistName,
+      "releaseDate": releaseDate,
+      "imageUrl": imageUrl,
+      "id": id,
+    };
+  }
+
+  factory Track.fromJson(Map<String, dynamic> json) {
+    return Track(
+      name: json["name"] as String,
+      albumName: json["albumName"] as String,
+      artistName: json["artistName"] as String,
+      imageUrl: json["imageUrl"] as String,
+      releaseDate: json["releaseDate"] as String,
+      id: json["id"] as String,
+    );
+  }
 }
 
 // list of filter widgets
@@ -670,8 +717,17 @@ class _FilterPageState extends State<FilterPage> {
                                             MaterialStateProperty.all<Color>(
                                                 theme.colorScheme
                                                     .primaryContainer)),
-                                    onPressed: () {
-                                      appState.changePage(SortPage());
+                                    onPressed: () async {
+                                      List<Map<String, dynamic>> trackMaps = [];
+                                      for (SongRow songRow in tracksToSort) {
+                                        Track track = songRow.track;
+                                        trackMaps.add(track.toMap());
+                                      }
+                                      print(trackMaps);
+                                      final int key = (await createSort(jsonEncode(trackMaps)));
+                                      print(key);
+                                      appState
+                                          .changePage(SortPageLoader(sortKey: key));
                                     },
                                     child: Text("Start Sorting"),
                                   ),
