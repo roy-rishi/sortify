@@ -25,25 +25,6 @@ const corsOptions = {
     optionsSuccessStatus: 200 // legacy browsers
 };
 
-// app.use(function (req, res, next) {
-
-//     // Website you wish to allow to connect
-//     res.setHeader('Access-Control-Allow-Origin', 'https://sortify.rishiroy.com');
-
-//     // Request methods you wish to allow
-//     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-
-//     // Request headers you wish to allow
-//     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-//     // Set to true if you need the website to include cookies in the requests sent
-//     // to the API (e.g. in case you use sessions)
-//     res.setHeader('Access-Control-Allow-Credentials', true);
-
-//     // Pass to next layer of middleware
-//     next();
-// });
-
 // start server
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -75,11 +56,8 @@ function sendEmail(address, subject, body) {
 
 
 // open db
-let db = new sqlite3.Database('./db/main.db');
-
-// app.listen((PORT), () => {
-//     console.log(`server is running on port ${PORT}`);
-// });
+let users_db = new sqlite3.Database('./db/users.db');
+let incomplete_db = new sqlite3.Database('./db/incomplete-tests.db');
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get('/', (req, res) => {
@@ -107,7 +85,7 @@ app.post('/login', (req, res) => {
     const pass = auth[1];
 
     // validate authentication values
-    db.get(`SELECT * FROM Users where Email = ?`, [user], (err, row) => {
+    users_db.get(`SELECT * FROM Users where Email = ?`, [user], (err, row) => {
         if (err)
             return res.status(500).send(err.message); // unknown error
         if (row == null)
@@ -179,7 +157,7 @@ app.post("/create-user", (req, res) => {
                     console.log("registering user ", email, name);
                     // insert user into db
                     const query = `INSERT INTO Users(Email, Password, Name) VALUES(?, ?, ?);`
-                    db.run(query, [email, hash, name], (err) => {
+                    users_db.run(query, [email, hash, name], (err) => {
                         if (err) {
                             // user already exists error
                             if (err.message.includes("SQLITE_CONSTRAINT: UNIQUE constraint failed:")) {
@@ -221,7 +199,7 @@ app.post('/email-status', (req, res) => {
     if (req.body.email == null)
         return res.status(442).send("Missing body.email");
 
-    db.get(`SELECT * FROM users WHERE Email = ?`, [req.body.email], (err, row) => {
+    users_db.get(`SELECT * FROM users WHERE Email = ?`, [req.body.email], (err, row) => {
         if (err)
             return res.status(500).send(err.message);
         return res.send(row ? "Email is registered" : "Email not registered");
@@ -421,5 +399,56 @@ app.post('/spotify/album-tracks', async (req, res) => {
                 });
         }
         searchSpotify(true); // first attempt to search
+    });
+});
+
+app.post('/create-sort', (req, res) => {
+    console.log("\n/create-sort");
+
+    incomplete_db.run(`INSERT INTO Incomplete(Date) VALUES (?)`, [Date.now(), req.body.users], function (err) {
+        if (err)
+            return res.status(500).send(err.message);
+        return res.send(this.lastID.toString());
+    });
+});
+
+
+app.post('/add-comparison', (req, res) => {
+    console.log("\n/add-comparison");
+
+    if (req.body.key == null)
+        return res.status(422).send("Missing key");
+
+    const newValue = req.body.value === "true" ? true : false;
+
+    incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
+        if (err) {
+            return res.status(500).send(err.message);
+        } else {
+            let existingData = [];
+            if (row.Comparisons) {
+                try {
+                    existingData = JSON.parse(row.Comparisons);
+                    if (!Array.isArray(existingData)) {
+                        existingData = [];
+                    }
+                } catch (parseError) {
+                    existingData = [];
+                }
+            }
+            // if there are more comparisons on the server than the requesting session, ask it to sync to the server
+            if (existingData.length + 1 > req.body.size)
+                return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
+
+            existingData.push(newValue);
+
+            incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ?`, [JSON.stringify(existingData), req.body.key], function (err) {
+                if (err) {
+                    return res.status(500).send(err.message);
+                } else {
+                    return res.send("Added comparison");
+                }
+            });
+        }
     });
 });
