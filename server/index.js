@@ -480,31 +480,32 @@ app.post('/add-comparison', (req, res) => {
         incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
             if (err) {
                 return res.status(500).send(err.message);
-            } else {
-                let existingData = [];
-                if (row && row.Comparisons) {
-                    try {
-                        existingData = JSON.parse(row.Comparisons);
-                        if (!Array.isArray(existingData)) {
-                            existingData = [];
-                        }
-                    } catch (parseError) {
+            }
+            if (row == null) // the incomplete sort was deleted
+                return res.status(422).send("This incomplete no longer exists");
+            let existingData = [];
+            if (row && row.Comparisons) {
+                try {
+                    existingData = JSON.parse(row.Comparisons);
+                    if (!Array.isArray(existingData)) {
                         existingData = [];
                     }
+                } catch (parseError) {
+                    existingData = [];
                 }
-                // if there are more comparisons on the server than the requesting session, ask it to sync to the server
-                if (existingData.length + 1 > req.body.size)
-                    return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
-
-                existingData.push(newValue);
-                console.log(existingData);
-
-                incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ?`, [JSON.stringify(existingData), req.body.key], function (err) {
-                    if (err)
-                        return res.status(500).send(err.message);
-                    return res.send("Saved");
-                });
             }
+            // if there are more comparisons on the server than the requesting session, ask it to sync to the server
+            if (existingData.length + 1 > req.body.size)
+                return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
+
+            existingData.push(newValue);
+            console.log(existingData);
+
+            incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ? AND User = ?`, [JSON.stringify(existingData), req.body.key, verified_jwt.body.email], function (err) {
+                if (err)
+                    return res.status(500).send(err.message);
+                return res.send("Saved");
+            });
         });
     });
 });
@@ -549,6 +550,28 @@ app.post('/add-completed-sort', (req, res) => {
                     return res.send("Added sort to database");
                 });
             }
+        });
+    });
+});
+
+app.post('/delete-incomplete-sort', (req, res) => {
+    console.log("\n/delete-incomplete-sort");
+
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+    if (req.body.key == null)
+        return res.status(400).send("Missing sort key");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
+
+        // delete respective incompleted sort (remove all incompletes of this User)
+        incomplete_db.run(`DELETE FROM Incomplete WHERE Key = ? AND User = ?`, [req.body.key, verified_jwt.body.email], function (err) {
+            if (err)
+                return res.status(500).send(err.message);
+            return res.send("Removed sort from database");
         });
     });
 });
