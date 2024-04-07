@@ -172,7 +172,6 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
     album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
     album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
     album.releaseDate = albumData["albums"]["items"][0]["release_date"];
-    print(album.releaseDate);
   }
   // fetch and parse album tracks
   List<Album> allAlbums = selections.albums;
@@ -194,8 +193,6 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
           id: track["id"],
           releaseDate: album.releaseDate,
           imageUrl: album.imageUrl));
-      print(track["name"]);
-      print(track["id"]);
     }
   }
 
@@ -388,7 +385,6 @@ Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
 }
 
 Future<String> albumTracksSpotify(String id, int limit, int offset) async {
-  print(id);
   final queryParameters = {
     "id": id,
     "limit": limit.toString(),
@@ -723,9 +719,7 @@ class _FilterPageState extends State<FilterPage> {
                                         Track track = songRow.track;
                                         trackMaps.add(track.toMap());
                                       }
-                                      print(trackMaps);
                                       final int key = (await createSort(jsonEncode(trackMaps)));
-                                      print(key);
                                       appState
                                           .changePage(SortPageLoader(sortKey: key));
                                     },

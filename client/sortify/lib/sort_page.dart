@@ -368,7 +368,6 @@ class _SortPageState extends State<SortPage> {
     List<Track>? firstPair = sortStates.nextPair();
     left = firstPair[0];
     right = firstPair[1];
-    print(widget.initialComparisons);
   }
 
   @override
@@ -418,9 +417,6 @@ class _SortPageState extends State<SortPage> {
                                   sortStates.addComparisonResult(true);
                                   List<Track> nextPair = sortStates.nextPair();
                                   // if not a set of two, sorting is done
-                                  for (Track t in nextPair) {
-                                    print(t.name);
-                                  }
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
                                     saveCompletedSort(nextPair);
@@ -459,9 +455,6 @@ class _SortPageState extends State<SortPage> {
                                   sortStates.addComparisonResult(false);
                                   List<Track> nextPair = sortStates.nextPair();
                                   // if not a set of two, sorting is done
-                                  for (Track t in nextPair) {
-                                    print(t.name);
-                                  }
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
                                     saveCompletedSort(nextPair);

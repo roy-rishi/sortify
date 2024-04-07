@@ -78,8 +78,6 @@ class _HomePageState extends State<HomePage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      print("checking for incompletes");
-      print(data);
 
       if (data is List && data.isEmpty) {
         return -1; // there are no incomplete tests
@@ -147,7 +145,6 @@ class _HomePageState extends State<HomePage> {
                                 return Text("No data");
                               }
                               if (snapshot.data == -1) {
-                                print(snapshot.data);
                                 return CardRowItem(
                                   text: "Start Round",
                                   icon: Icons.play_arrow_outlined,
