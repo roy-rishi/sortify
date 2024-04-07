@@ -10,9 +10,6 @@ import 'package:sortify/sort_page.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:collection';
-import 'dart:math';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 import 'app_state.dart';
 import 'constants.dart';
