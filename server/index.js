@@ -58,6 +58,7 @@ function sendEmail(address, subject, body) {
 // open db
 let users_db = new sqlite3.Database('./db/users.db');
 let incomplete_db = new sqlite3.Database('./db/incomplete-tests.db');
+let complete_db = new sqlite3.Database('./db/complete-tests.db');
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get('/', (req, res) => {
@@ -509,6 +510,32 @@ app.get('/all-incomplete-sorts', (req, res) => {
             if (err)
                 return res.status(500).send(err.message);
             res.send(JSON.stringify(rows));
+        });
+    });
+});
+
+app.post('/add-completed-sort', (req, res) => {
+    console.log("\n/add-completed-sort");
+
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
+        complete_db.run(`INSERT INTO Complete(Date, Songs, User) VALUES (?, ?, ?)`, [Date.now(), req.body.songs, verified_jwt.body.email], function (err) {
+            if (err) {
+                return res.status(500).send(err.message);
+            }
+            else {
+                // delete respective incompleted sort (remove all incompletes of this User)
+                incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
+                    if (err)
+                        return res.status(500).send(err.message);
+                    return res.send("Added sort to database");
+                });
+            }
         });
     });
 });
