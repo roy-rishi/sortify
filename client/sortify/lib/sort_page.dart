@@ -42,9 +42,9 @@ class SortPageLoader extends StatelessWidget {
               tracksJson.map((element) => Track.fromJson(element)).toList();
 
           List<bool> comparisons = [];
-          List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
 
-          if (comparisonsData != null) {
+          if (data["Comparisons"] != null) {
+          List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
             comparisons =
                 comparisonsData.map((element) => element == "true").toList();
           }
@@ -331,6 +331,31 @@ class _SortPageState extends State<SortPage> {
     );
   }
 
+  Future<String> saveCompletedSort(List<Track> songs) async {
+    final storedJwt = await storage.read(key: "jwt");
+
+    List<Map<String, dynamic>> trackMaps = [];
+    for (Track track in songs) {
+      trackMaps.add(track.toMap());
+    }
+
+    final response = await http.post(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/add-completed-sort"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        HttpHeaders.authorizationHeader: "Bearer $storedJwt"
+      },
+      body: jsonEncode(<String, dynamic>{
+        "songs": trackMaps,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    throw Exception(response.body);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -389,7 +414,8 @@ class _SortPageState extends State<SortPage> {
                                   sortStates.addComparisonResult(true);
                                   List<Track> nextPair = sortStates.nextPair();
                                   // if not a set of two, sorting is done
-                                  if (nextPair.length >= sortStates.songs.length) {
+                                  if (nextPair.length >=
+                                      sortStates.songs.length) {
                                     appState.changePage(
                                         ResultsPage(tracks: nextPair));
                                   } else {
@@ -428,7 +454,9 @@ class _SortPageState extends State<SortPage> {
                                   for (Track t in nextPair) {
                                     print(t.name);
                                   }
-                                  if (nextPair.length >= sortStates.songs.length) {
+                                  if (nextPair.length >=
+                                      sortStates.songs.length) {
+                                    saveCompletedSort(nextPair);
                                     appState.changePage(
                                         ResultsPage(tracks: nextPair));
                                   } else {
