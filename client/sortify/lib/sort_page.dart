@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -28,19 +30,14 @@ class SortPageLoader extends StatelessWidget {
         } else if (snapshot.hasError) {
           return Text("Error: ${snapshot.error}");
         } else {
-          List<Track> tracks = parseTracks(snapshot.data!);
+          Map<String, dynamic> data = json.decode(snapshot.data!);
+          List<dynamic> tracksJson = json.decode(data["Songs"]);
+          List<Track> tracks =
+              tracksJson.map((json) => Track.fromJson(json)).toList();
           return SortPage(sortKey: sortKey, tracks: tracks);
         }
       },
     );
-  }
-
-  List<Track> parseTracks(String songsJson) {
-    // Parse the JSON and convert it to a List<Track>
-    List<dynamic> tracksJson = json.decode(songsJson);
-    List<Track> tracks =
-        tracksJson.map((json) => Track.fromJson(json)).toList();
-    return tracks;
   }
 }
 
@@ -60,6 +57,7 @@ Future<String> loadSort(int sortKey) async {
 class Sort {
   final List<Track> songs;
   List<bool> _comparisons = [];
+  // int _index = 0;
   int _index = 0;
 
   Sort({
@@ -208,12 +206,97 @@ class SortPage extends StatefulWidget {
 }
 
 class _SortPageState extends State<SortPage> {
-  int sortCount = 1;
   List<Track> sortingList = [];
   late final Sort sortStates;
   // tracks to display on sorting page
   late Track left;
   late Track right;
+  // sync status
+  String syncStatus = "";
+  bool isSyncing = false;
+
+  Future<String> uploadComparison(
+      {required int sortKey, required bool value, required int size}) async {
+    // prevent simultaneous requests by preventing repeated button clicks
+    setState(() {
+      isSyncing = true;
+    });
+
+    final response = await http.post(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/add-comparison"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        "key": sortKey,
+        "value": value,
+        "size": size,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        syncStatus = response.body;
+        isSyncing = false;
+      });
+      return response.body;
+    }
+    if (response.body ==
+        "Unable to add comparison; this sorting session is behind the database") {
+      // the client is behind the server, need to download progress
+      Map<String, dynamic> data = json.decode(await loadSort(sortKey));
+      setState(() {
+        // convert to List<bool>
+        sortStates._comparisons =
+            (json.decode(data["Comparisons"]) as List<dynamic>).map((element) {
+          if (element is bool) {
+            return element;
+          } else if (element is String) {
+            if (element.toLowerCase() == "true") {
+              return true;
+            } else if (element.toLowerCase() == "false") {
+              return false;
+            }
+          }
+          throw FormatException('Invalid boolean value: $element');
+        }).toList();
+        syncStatus = "Refreshed";
+        isSyncing = false;
+        _refreshedContentAlert();
+      });
+      return response.body;
+    }
+    throw Exception(response.body);
+  }
+
+  Future<void> _refreshedContentAlert() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Refreshed Content"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text("Your progress from other devices has been restored."),
+                Text(
+                    "You are now on Battle ${sortStates._comparisons.length + 1}"),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Continue"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -232,11 +315,24 @@ class _SortPageState extends State<SortPage> {
       color: theme.colorScheme.primary,
       fontWeight: FontWeight.w700,
     );
+    final syncStyle = theme.textTheme.headlineSmall!.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w300,
+      fontSize: 19,
+    );
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text("Battle", style: titleStyle),
+        Column(
+          children: [
+            Text("Battle", style: titleStyle),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(syncStatus, style: syncStyle),
+            ),
+          ],
+        ),
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -251,21 +347,29 @@ class _SortPageState extends State<SortPage> {
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
-                          onPressed: () {
-                            sortStates.addComparisonResult(true);
-                            List<Track> nextPair = sortStates.nextPair();
-                            // if not a set of two, sorting is done
-                            if (nextPair.length == tracksToSort.length) {
-                              appState
-                                  .changePage(ResultsPage(tracks: nextPair));
-                            } else {
-                              setState(() {
-                                left = nextPair[0];
-                                right = nextPair[1];
-                                sortCount++;
-                              });
-                            }
-                          },
+                          // disable button while syncing
+                          onPressed: isSyncing
+                              ? null
+                              : () {
+                                  sortStates.addComparisonResult(true);
+                                  List<Track> nextPair = sortStates.nextPair();
+                                  // if not a set of two, sorting is done
+                                  if (nextPair.length == tracksToSort.length) {
+                                    appState.changePage(
+                                        ResultsPage(tracks: nextPair));
+                                  } else {
+                                    setState(() {
+                                      left = nextPair[0];
+                                      right = nextPair[1];
+                                      // sync with server
+                                      syncStatus = "Saving result...";
+                                      uploadComparison(
+                                          sortKey: widget.sortKey,
+                                          value: false,
+                                          size: sortStates._comparisons.length);
+                                    });
+                                  }
+                                },
                           child: Text("Select"),
                         ),
                       ),
@@ -280,21 +384,29 @@ class _SortPageState extends State<SortPage> {
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
-                          onPressed: () {
-                            sortStates.addComparisonResult(false);
-                            List<Track> nextPair = sortStates.nextPair();
-                            // if not a set of two, sorting is done
-                            if (nextPair.length == tracksToSort.length) {
-                              appState
-                                  .changePage(ResultsPage(tracks: nextPair));
-                            } else {
-                              setState(() {
-                                left = nextPair[0];
-                                right = nextPair[1];
-                                sortCount++;
-                              });
-                            }
-                          },
+                          // disable button while syncing
+                          onPressed: isSyncing
+                              ? null
+                              : () {
+                                  sortStates.addComparisonResult(false);
+                                  List<Track> nextPair = sortStates.nextPair();
+                                  // if not a set of two, sorting is done
+                                  if (nextPair.length == tracksToSort.length) {
+                                    appState.changePage(
+                                        ResultsPage(tracks: nextPair));
+                                  } else {
+                                    setState(() {
+                                      left = nextPair[0];
+                                      right = nextPair[1];
+                                      // sync with server
+                                      syncStatus = "Saving result...";
+                                      uploadComparison(
+                                          sortKey: widget.sortKey,
+                                          value: false,
+                                          size: sortStates._comparisons.length);
+                                    });
+                                  }
+                                },
                           child: Text("Select"),
                         ),
                       ),
@@ -308,7 +420,8 @@ class _SortPageState extends State<SortPage> {
         Card.outlined(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text("Set $sortCount", style: theme.textTheme.bodyLarge),
+            child: Text("Set ${sortStates._comparisons.length + 1}",
+                style: theme.textTheme.bodyLarge),
           ),
         ),
       ],
