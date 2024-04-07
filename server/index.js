@@ -463,14 +463,14 @@ app.post('/add-comparison', (req, res) => {
         if (err)
             return res.status(401).send(err.message);
 
-        const newValue = req.body.value === "true" ? true : false;
+        const newValue = req.body.value;
 
         incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
             if (err) {
                 return res.status(500).send(err.message);
             } else {
                 let existingData = [];
-                if (row.Comparisons) {
+                if (row && row.Comparisons) {
                     try {
                         existingData = JSON.parse(row.Comparisons);
                         if (!Array.isArray(existingData)) {
@@ -481,10 +481,11 @@ app.post('/add-comparison', (req, res) => {
                     }
                 }
                 // if there are more comparisons on the server than the requesting session, ask it to sync to the server
-                if (existingData.length > req.body.size)
+                if (existingData.length + 1 > req.body.size)
                     return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
 
                 existingData.push(newValue);
+                console.log(existingData);
 
                 incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ?`, [JSON.stringify(existingData), req.body.key], function (err) {
                     if (err)
