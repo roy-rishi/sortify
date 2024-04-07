@@ -668,6 +668,7 @@ class _FilterPageState extends State<FilterPage> {
                 // RIGHT PANEL
                 Expanded(
                   child: ListView(
+                    physics: BouncingScrollPhysics(),
                     padding: const EdgeInsets.all(8),
                     children: <Widget>[
                       // if loading icon should be displayed
@@ -678,8 +679,8 @@ class _FilterPageState extends State<FilterPage> {
                             Column(
                               children: [
                                 SizedBox(
-                                  height: 40,
-                                  width: 40,
+                                  // height: 40,
+                                  // width: 40,
                                   child: CircularProgressIndicator(
                                     value: null,
                                   ),
