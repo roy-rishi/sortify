@@ -15,7 +15,6 @@ final storage = FlutterSecureStorage();
 
 Future<String> verifyReq() async {
   final storedJwt = await storage.read(key: "jwt");
-  // print(storedJwt);
 
   final response = await http.get(
     Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/verify"),

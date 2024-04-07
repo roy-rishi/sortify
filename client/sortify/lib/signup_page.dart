@@ -70,7 +70,6 @@ class SendEmailPanel extends StatelessWidget {
         children: [
           TextButton(
             onPressed: () {
-              print("Returning to login page");
               appState.changePage(LoginPage());
             },
             child: Text("Or, Login"),
@@ -168,15 +167,12 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
           children: [
             TextButton(
               onPressed: () {
-                print("Returning to login page");
                 appState.changePage(LoginPage());
               },
               child: Text("Or, Login"),
             ),
             OutlinedButton(
                 onPressed: () async {
-                  print("Validating sign up form");
-
                   var errors = "";
                   // code field is empty
                   if (_codeController.text.trim() == "") {
@@ -205,13 +201,10 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
                     ScaffoldMessenger.of(context).showSnackBar(snackBar);
                     return;
                   } else {
-                    print("Requesting user creation");
-
                     var status = await createUser(
                         _pass1Controller.text.trim(),
                         _nameController.text.trim(),
                         _codeController.text.trim());
-                    print(status);
                     if (status.toString() != "Created user") {
                       var snackBar = SnackBar(
                         content: Center(child: Text(status.toString())),
@@ -251,7 +244,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
     Widget panel;
 
-    print(appState.panelIndex);
     switch (appState.panelIndex) {
       case 0:
         panel = SendEmailPanel(email: appState.email);
