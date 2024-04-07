@@ -44,7 +44,7 @@ class SortPageLoader extends StatelessWidget {
           List<bool> comparisons = [];
 
           if (data["Comparisons"] != null) {
-          List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
+            List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
             comparisons =
                 comparisonsData.map((element) => element == "true").toList();
           }
@@ -295,8 +295,12 @@ class _SortPageState extends State<SortPage> {
         }).toList();
         syncStatus = "Restored";
         isSyncing = false;
-        _refreshedContentAlert();
+
+        List<Track> nextPair = sortStates.nextPair();
+        left = nextPair[0];
+        right = nextPair[1];
       });
+      _refreshedContentAlert();
       return response.body;
     }
     throw Exception(response.body);
@@ -414,20 +418,24 @@ class _SortPageState extends State<SortPage> {
                                   sortStates.addComparisonResult(true);
                                   List<Track> nextPair = sortStates.nextPair();
                                   // if not a set of two, sorting is done
+                                  for (Track t in nextPair) {
+                                    print(t.name);
+                                  }
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
+                                    saveCompletedSort(nextPair);
                                     appState.changePage(
                                         ResultsPage(tracks: nextPair));
                                   } else {
                                     setState(() {
                                       left = nextPair[0];
                                       right = nextPair[1];
-                                      // sync with server
-                                      uploadComparison(
-                                          sortKey: widget.sortKey,
-                                          value: true,
-                                          size: sortStates.comparisons.length);
                                     });
+                                    // sync with server
+                                    uploadComparison(
+                                        sortKey: widget.sortKey,
+                                        value: true,
+                                        size: sortStates.comparisons.length);
                                   }
                                 },
                           child: Text("Select"),
@@ -463,12 +471,12 @@ class _SortPageState extends State<SortPage> {
                                     setState(() {
                                       left = nextPair[0];
                                       right = nextPair[1];
-                                      // sync with server
-                                      uploadComparison(
-                                          sortKey: widget.sortKey,
-                                          value: false,
-                                          size: sortStates.comparisons.length);
                                     });
+                                    // sync with server
+                                    uploadComparison(
+                                        sortKey: widget.sortKey,
+                                        value: false,
+                                        size: sortStates.comparisons.length);
                                   }
                                 },
                           child: Text("Select"),
