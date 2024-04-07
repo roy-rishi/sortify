@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
+import 'package:sortify/home_page.dart';
 import 'package:sortify/results_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -244,6 +245,8 @@ class _SortPageState extends State<SortPage> {
   // sync status
   String syncStatus = "";
   bool isSyncing = false;
+  // need to redirect home
+  bool goHome = false;
 
   Future<String> uploadComparison(
       {required int sortKey, required bool value, required int size}) async {
@@ -273,6 +276,10 @@ class _SortPageState extends State<SortPage> {
         isSyncing = false;
       });
       return response.body;
+    }
+    if (response.body == "This incomplete no longer exists") {
+      _deletedSortAlert();
+      return "";
     }
     if (response.body ==
         "Unable to add comparison; this sorting session is behind the database") {
@@ -335,6 +342,37 @@ class _SortPageState extends State<SortPage> {
     );
   }
 
+  Future<void> _deletedSortAlert() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Sort No Longer Exists"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text("This sort may have been deleted or completed."),
+                Text("Create a new sort, or view your past results."),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Continue"),
+              onPressed: () {
+                setState(() {
+                  goHome = true;
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<String> saveCompletedSort(List<Track> songs) async {
     final storedJwt = await storage.read(key: "jwt");
 
@@ -351,6 +389,26 @@ class _SortPageState extends State<SortPage> {
       },
       body: jsonEncode(<String, dynamic>{
         "songs": trackMaps,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    throw Exception(response.body);
+  }
+
+  Future<String> deleteIncompleteSort(int sortKey) async {
+    final storedJwt = await storage.read(key: "jwt");
+
+    final response = await http.post(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/delete-incomplete-sort"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        HttpHeaders.authorizationHeader: "Bearer $storedJwt"
+      },
+      body: jsonEncode(<String, dynamic>{
+        "key": sortKey,
       }),
     );
 
@@ -383,6 +441,13 @@ class _SortPageState extends State<SortPage> {
       fontWeight: FontWeight.w300,
       fontSize: 19,
     );
+
+    // redirect to home page
+    if (goHome) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        appState.changePage(HomePage());
+      });
+    }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -482,12 +547,46 @@ class _SortPageState extends State<SortPage> {
             ),
           ],
         ),
-        Card.outlined(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text("Set ${sortStates.comparisons.length + 1}",
-                style: theme.textTheme.bodyLarge),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Tooltip(
+              message: "Save and Exit",
+              child: IconButton(
+                color: theme.colorScheme.secondary,
+                onPressed: () {
+                  setState(() {
+                    goHome = true;
+                  });
+                },
+                icon: Icon(Icons.arrow_back_ios_new_rounded),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8),
+              child: Card.outlined(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                      left: 12, right: 12, top: 8, bottom: 8),
+                  child: Text("Set ${sortStates.comparisons.length + 1}",
+                      style: theme.textTheme.bodyLarge),
+                ),
+              ),
+            ),
+            Tooltip(
+              message: "Delete Permanently",
+              child: IconButton(
+                color: theme.colorScheme.secondary,
+                onPressed: () {
+                  deleteIncompleteSort(widget.sortKey);
+                  setState(() {
+                    goHome = true;
+                  });
+                },
+                icon: Icon(Icons.delete_outline_outlined),
+              ),
+            ),
+          ],
         ),
       ],
     );
