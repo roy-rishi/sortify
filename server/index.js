@@ -416,12 +416,12 @@ app.post('/create-sort', (req, res) => {
 app.get('/get-sort', (req, res) => {
     console.log("\n/get-sort");
 
-    incomplete_db.get(`SELECT Songs FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
+    incomplete_db.get(`SELECT * FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
         if (err)
             return res.status(500).send(err.message);
-        if (item["Songs"]) {
-            console.log(item["Songs"]);
-            return res.send(item["Songs"]);
+        if (item && item["Songs"]) {
+            console.log(item)
+            return res.send(item);
         } else
             return res.status(400).send("No songs found");
     });
@@ -460,7 +460,7 @@ app.post('/add-comparison', (req, res) => {
                 if (err) {
                     return res.status(500).send(err.message);
                 } else {
-                    return res.send("Added comparison");
+                    return res.send("Saved");
                 }
             });
         }
