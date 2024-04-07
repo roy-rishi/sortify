@@ -1,27 +1,98 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sortify/results_page.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
 
 import 'filter_page.dart';
 import 'app_state.dart';
+import 'constants.dart';
+
+final storage = FlutterSecureStorage();
+
+// display loading icon until sort data is acquired from server
+class SortPageLoader extends StatelessWidget {
+  final int sortKey;
+
+  const SortPageLoader({Key? key, required this.sortKey}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: loadSort(sortKey),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        } else if (snapshot.hasError) {
+          return Text("Error: ${snapshot.error}");
+        } else {
+          Map<String, dynamic> data = json.decode(snapshot.data!);
+          List<dynamic> tracksJson = json.decode(data["Songs"]);
+          List<Track> tracks =
+              tracksJson.map((element) => Track.fromJson(element)).toList();
+
+          List<bool> comparisons = [];
+
+          if (data["Comparisons"] != null) {
+            List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
+            comparisons =
+                comparisonsData.map((element) => element == "true").toList();
+          }
+
+          return SortPage(
+            sortKey: sortKey,
+            tracks: tracks,
+            initialComparisons: comparisons,
+          );
+        }
+      },
+    );
+  }
+}
+
+Future<String> loadSort(int sortKey) async {
+  final storedJwt = await storage.read(key: "jwt");
+  final response = await http.get(
+      Uri.parse(
+          "$HTTP_PROTOCOL$SERVER_BASE_URL/get-incomplete-sort?key=$sortKey"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+      });
+
+  if (response.statusCode == 200) {
+    return response.body;
+  }
+  if (response.statusCode == 401) {
+    throw Exception("Need to login");
+  }
+  throw Exception(response.body);
+}
 
 class Sort {
   final List<Track> songs;
-  List<bool> _comparisons = [];
+  List<bool> comparisons = [];
+  // int _index = 0;
   int _index = 0;
-  // int _lastIndex = 0;
 
   Sort({
     required this.songs,
+    required this.comparisons,
   });
 
   // add the result of a comparison use submits
   void addComparisonResult(bool result) {
-    _comparisons.add(result);
+    comparisons.add(result);
   }
 
   // get next pair of comparisons, return full list if sorted
@@ -38,7 +109,6 @@ class Sort {
         int m = min(l + width - 1, n - 1);
         List<Track>? nextPair = merge(copy, l, m, r);
         if (nextPair != null) {
-          print(_comparisons);
           return nextPair;
         }
         l += width * 2;
@@ -58,11 +128,11 @@ class Sort {
 
     int i = 0, j = 0, k = l;
     while (i < n1 && j < n2) {
-      if (_index >= _comparisons.length || _comparisons.isEmpty) {
+      if (_index >= comparisons.length || comparisons.isEmpty) {
         return [L[i], R[j]];
       }
 
-      if (_comparisons[_index]) {
+      if (comparisons[_index]) {
         copy[k] = L[i];
         i++;
       } else {
@@ -151,30 +221,150 @@ class SongCard extends StatelessWidget {
 }
 
 class SortPage extends StatefulWidget {
-  const SortPage({super.key});
+  const SortPage(
+      {super.key,
+      required this.sortKey,
+      required this.tracks,
+      required this.initialComparisons});
+
+  final int sortKey;
+  final List<Track> tracks;
+  final List<bool> initialComparisons;
 
   @override
   State<SortPage> createState() => _SortPageState();
 }
 
 class _SortPageState extends State<SortPage> {
-  int sortCount = 1;
-  // int left = 0;
-  // int right = tracksToSort.length - 1;
-  List<Track> sortingList = [];
+  // List<Track> sortingList = [];
   late final Sort sortStates;
   // tracks to display on sorting page
   late Track left;
   late Track right;
+  // sync status
+  String syncStatus = "";
+  bool isSyncing = false;
+
+  Future<String> uploadComparison(
+      {required int sortKey, required bool value, required int size}) async {
+    // prevent simultaneous requests by preventing repeated button clicks
+    setState(() {
+      syncStatus = "Saving...";
+      isSyncing = true;
+    });
+    final storedJwt = await storage.read(key: "jwt");
+
+    final response = await http.post(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/add-comparison"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        HttpHeaders.authorizationHeader: "Bearer $storedJwt"
+      },
+      body: jsonEncode(<String, dynamic>{
+        "key": sortKey,
+        "value": value,
+        "size": size,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        syncStatus = response.body;
+        isSyncing = false;
+      });
+      return response.body;
+    }
+    if (response.body ==
+        "Unable to add comparison; this sorting session is behind the database") {
+      // the client is behind the server, need to download progress
+      Map<String, dynamic> data = json.decode(await loadSort(sortKey));
+      setState(() {
+        // convert to List<bool>
+        sortStates.comparisons =
+            (json.decode(data["Comparisons"]) as List<dynamic>).map((element) {
+          if (element is bool) {
+            return element;
+          } else if (element is String) {
+            if (element.toLowerCase() == "true") {
+              return true;
+            } else if (element.toLowerCase() == "false") {
+              return false;
+            }
+          }
+          throw FormatException('Invalid boolean value: $element');
+        }).toList();
+        syncStatus = "Restored";
+        isSyncing = false;
+
+        List<Track> nextPair = sortStates.nextPair();
+        left = nextPair[0];
+        right = nextPair[1];
+      });
+      _refreshedContentAlert();
+      return response.body;
+    }
+    throw Exception(response.body);
+  }
+
+  Future<void> _refreshedContentAlert() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Restored Content"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text("Your progress from other devices has been restored."),
+                Text(
+                    "You are now on Battle ${sortStates.comparisons.length + 1}"),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Continue"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<String> saveCompletedSort(List<Track> songs) async {
+    final storedJwt = await storage.read(key: "jwt");
+
+    List<Map<String, dynamic>> trackMaps = [];
+    for (Track track in songs) {
+      trackMaps.add(track.toMap());
+    }
+
+    final response = await http.post(
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/add-completed-sort"),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        HttpHeaders.authorizationHeader: "Bearer $storedJwt"
+      },
+      body: jsonEncode(<String, dynamic>{
+        "songs": trackMaps,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    throw Exception(response.body);
+  }
 
   @override
   void initState() {
     super.initState();
-    // convert SongRows to Tracks
-    for (SongRow song in tracksToSort) {
-      sortingList.add(song.track);
-    }
-    sortStates = Sort(songs: sortingList);
+    sortStates =
+        Sort(songs: widget.tracks, comparisons: widget.initialComparisons);
     List<Track>? firstPair = sortStates.nextPair();
     left = firstPair[0];
     right = firstPair[1];
@@ -188,11 +378,24 @@ class _SortPageState extends State<SortPage> {
       color: theme.colorScheme.primary,
       fontWeight: FontWeight.w700,
     );
+    final syncStyle = theme.textTheme.headlineSmall!.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w300,
+      fontSize: 19,
+    );
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text("Battle", style: titleStyle),
+        Column(
+          children: [
+            Text("Battle", style: titleStyle),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(syncStatus, style: syncStyle),
+            ),
+          ],
+        ),
         Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -207,21 +410,30 @@ class _SortPageState extends State<SortPage> {
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
-                          onPressed: () {
-                            sortStates.addComparisonResult(true);
-                            List<Track> nextPair = sortStates.nextPair();
-                            // if not a set of two, sorting is done
-                            if (nextPair.length == tracksToSort.length) {
-                              appState
-                                  .changePage(ResultsPage(tracks: nextPair));
-                            } else {
-                              setState(() {
-                                left = nextPair[0];
-                                right = nextPair[1];
-                                sortCount++;
-                              });
-                            }
-                          },
+                          // disable button while syncing
+                          onPressed: isSyncing
+                              ? null
+                              : () {
+                                  sortStates.addComparisonResult(true);
+                                  List<Track> nextPair = sortStates.nextPair();
+                                  // if not a set of two, sorting is done
+                                  if (nextPair.length >=
+                                      sortStates.songs.length) {
+                                    saveCompletedSort(nextPair);
+                                    appState.changePage(
+                                        ResultsPage(tracks: nextPair));
+                                  } else {
+                                    setState(() {
+                                      left = nextPair[0];
+                                      right = nextPair[1];
+                                    });
+                                    // sync with server
+                                    uploadComparison(
+                                        sortKey: widget.sortKey,
+                                        value: true,
+                                        size: sortStates.comparisons.length);
+                                  }
+                                },
                           child: Text("Select"),
                         ),
                       ),
@@ -236,21 +448,30 @@ class _SortPageState extends State<SortPage> {
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
-                          onPressed: () {
-                            sortStates.addComparisonResult(false);
-                            List<Track> nextPair = sortStates.nextPair();
-                            // if not a set of two, sorting is done
-                            if (nextPair.length == tracksToSort.length) {
-                              appState
-                                  .changePage(ResultsPage(tracks: nextPair));
-                            } else {
-                              setState(() {
-                                left = nextPair[0];
-                                right = nextPair[1];
-                                sortCount++;
-                              });
-                            }
-                          },
+                          // disable button while syncing
+                          onPressed: isSyncing
+                              ? null
+                              : () {
+                                  sortStates.addComparisonResult(false);
+                                  List<Track> nextPair = sortStates.nextPair();
+                                  // if not a set of two, sorting is done
+                                  if (nextPair.length >=
+                                      sortStates.songs.length) {
+                                    saveCompletedSort(nextPair);
+                                    appState.changePage(
+                                        ResultsPage(tracks: nextPair));
+                                  } else {
+                                    setState(() {
+                                      left = nextPair[0];
+                                      right = nextPair[1];
+                                    });
+                                    // sync with server
+                                    uploadComparison(
+                                        sortKey: widget.sortKey,
+                                        value: false,
+                                        size: sortStates.comparisons.length);
+                                  }
+                                },
                           child: Text("Select"),
                         ),
                       ),
@@ -264,7 +485,8 @@ class _SortPageState extends State<SortPage> {
         Card.outlined(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text("Set $sortCount", style: theme.textTheme.bodyLarge),
+            child: Text("Set ${sortStates.comparisons.length + 1}",
+                style: theme.textTheme.bodyLarge),
           ),
         ),
       ],

@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sortify/filter_page.dart';
 
+import 'package:http/http.dart' as http;
+import 'package:sortify/sort_page.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'app_state.dart';
+import 'constants.dart';
+
+final storage = FlutterSecureStorage();
 
 class CardRowItem extends StatelessWidget {
   const CardRowItem(
@@ -23,7 +32,10 @@ class CardRowItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-          top: paddingDist, bottom: paddingDist, right: paddingDist / 2, left: paddingDist / 2),
+          top: paddingDist,
+          bottom: paddingDist,
+          right: paddingDist / 2,
+          left: paddingDist / 2),
       child: AspectRatio(
         aspectRatio: 4 / 3,
         child: Card(
@@ -55,6 +67,32 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  Future<int> incompletesExist() async {
+    final storedJwt = await storage.read(key: "jwt");
+    final response = await http.get(
+        Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/all-incomplete-sorts"),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          HttpHeaders.authorizationHeader: "Bearer $storedJwt",
+        });
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      if (data is List && data.isEmpty) {
+        return -1; // there are no incomplete tests
+      } else if (data is List && data.isNotEmpty) {
+        return data[0]["Key"];
+      } else {
+        throw Exception("An error occured");
+      }
+    }
+    if (response.statusCode == 401) {
+      throw Exception("Need to login");
+    }
+    throw Exception(response.body);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -64,7 +102,6 @@ class _HomePageState extends State<HomePage> {
       fontSize: 80,
     );
     final heading2Style = theme.textTheme.headlineMedium;
-
 
     return Center(
       child: SizedBox(
@@ -94,10 +131,38 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                         ),
-                        CardRowItem(
-                            text: "Start Round",
-                            icon: Icons.play_arrow_outlined,
-                            nextPage: FilterPage()),
+                        FutureBuilder(
+                            future: incompletesExist(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return CircularProgressIndicator();
+                              }
+                              if (snapshot.hasError) {
+                                return Text('Error: ${snapshot.error}');
+                              }
+                              if (snapshot.data == null) {
+                                return Text("No data");
+                              }
+                              if (snapshot.data == -1) {
+                                return CardRowItem(
+                                  text: "Start Round",
+                                  icon: Icons.play_arrow_outlined,
+                                  nextPage: FilterPage(),
+                                );
+                              } else {
+                                return CardRowItem(
+                                  text: "Resume Round",
+                                  icon: Icons.play_arrow_outlined,
+                                  nextPage:
+                                      SortPageLoader(sortKey: snapshot.data!),
+                                );
+                              }
+                            }),
+                        // CardRowItem(
+                        //     text: "Start Round",
+                        //     icon: Icons.play_arrow_outlined,
+                        //     nextPage: FilterPage()),
                       ],
                     ),
                   ),

@@ -42,7 +42,6 @@ Future<bool> attemptLogin(String email, String password) async {
   );
 
   if (response.statusCode == 200) {
-    print(response.body);
     await storage.write(key: "jwt", value: response.body.toString());
     print("Authorization successful");
     return true;
@@ -141,7 +140,6 @@ class _LoginPageState extends State<LoginPage> {
                         futureEmailStatus =
                             emailStatus(_emailController.text.trim());
                       });
-                      print(_emailController.text.trim());
                     } else if (emailRegStatus == "Email is registered") {
                       attemptLogin(_emailController.text.trim(),
                               _passwordController.text.trim())
@@ -149,8 +147,6 @@ class _LoginPageState extends State<LoginPage> {
                         if (loginStatus) {
                           appState.changePage(HomePage());
                         } else {
-                          print("Login failed");
-
                           var snackBar = SnackBar(
                             content: Center(child: Text("Invalid Login Credentials")),
                           );
