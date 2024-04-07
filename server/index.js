@@ -406,63 +406,109 @@ app.post('/spotify/album-tracks', async (req, res) => {
 app.post('/create-sort', (req, res) => {
     console.log("\n/create-sort");
 
-    incomplete_db.run(`INSERT INTO Incomplete(Date, Users, Songs) VALUES (?, ?, ?)`, [Date.now(), req.body.users, req.body.songs], function (err) {
+    if (!req.body.songs)
+        return res.status(400).send("Missing list of songs");
+    if (!req.headers.authorization)
+        return res.status(401).send("Missing auth token");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
-            return res.status(500).send(err.message);
-        return res.send(this.lastID.toString());
+            return res.status(401).send(err.message);
+
+        incomplete_db.run(`INSERT INTO Incomplete(Date, User, Songs) VALUES (?, ?, ?)`, [Date.now(), verified_jwt.body.email, req.body.songs], function (err) {
+            if (err)
+                return res.status(500).send(err.message);
+            return res.send(this.lastID.toString());
+        });
     });
 });
 
-app.get('/get-sort', (req, res) => {
-    console.log("\n/get-sort");
+app.get('/get-incomplete-sort', (req, res) => {
+    console.log("\n/get-incomplete-sort");
 
-    incomplete_db.get(`SELECT * FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+    if (!req.query.key)
+        return res.status(400).send("Missing key in query");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
-            return res.status(500).send(err.message);
-        if (item && item["Songs"]) {
-            console.log(item)
-            return res.send(item);
-        } else
-            return res.status(400).send("No songs found");
+            return res.status(401).send(err.message);
+
+        incomplete_db.get(`SELECT * FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
+            if (err)
+                return res.status(500).send(err.message);
+            if (item) {
+                console.log(item)
+                return res.send(item);
+            } else
+                return res.status(400).send("Incomplete sort not found");
+        });
     });
 });
 
 app.post('/add-comparison', (req, res) => {
     console.log("\n/add-comparison");
 
-    if (req.body.key == null)
+    if (!req.body.key)
         return res.status(422).send("Missing key");
+    if (!req.headers.authorization)
+        return res.status(401).send("Missing auth token");
 
-    const newValue = req.body.value === "true" ? true : false;
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
 
-    incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
-        if (err) {
-            return res.status(500).send(err.message);
-        } else {
-            let existingData = [];
-            if (row.Comparisons) {
-                try {
-                    existingData = JSON.parse(row.Comparisons);
-                    if (!Array.isArray(existingData)) {
+        const newValue = req.body.value === "true" ? true : false;
+
+        incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
+            if (err) {
+                return res.status(500).send(err.message);
+            } else {
+                let existingData = [];
+                if (row.Comparisons) {
+                    try {
+                        existingData = JSON.parse(row.Comparisons);
+                        if (!Array.isArray(existingData)) {
+                            existingData = [];
+                        }
+                    } catch (parseError) {
                         existingData = [];
                     }
-                } catch (parseError) {
-                    existingData = [];
                 }
-            }
-            // if there are more comparisons on the server than the requesting session, ask it to sync to the server
-            if (existingData.length + 1 > req.body.size)
-                return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
+                // if there are more comparisons on the server than the requesting session, ask it to sync to the server
+                if (existingData.length > req.body.size)
+                    return res.status(422).send("Unable to add comparison; this sorting session is behind the database");
 
-            existingData.push(newValue);
+                existingData.push(newValue);
 
-            incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ?`, [JSON.stringify(existingData), req.body.key], function (err) {
-                if (err) {
-                    return res.status(500).send(err.message);
-                } else {
+                incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ?`, [JSON.stringify(existingData), req.body.key], function (err) {
+                    if (err)
+                        return res.status(500).send(err.message);
                     return res.send("Saved");
-                }
-            });
-        }
+                });
+            }
+        });
+    });
+});
+
+app.get('/all-incomplete-sorts', (req, res) => {
+    console.log("\n/all-incomplete-sorts");
+
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
+        incomplete_db.all(`SELECT * FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err, rows) {
+            if (err)
+                return res.status(500).send(err.message);
+            res.send(JSON.stringify(rows));
+        });
     });
 });
