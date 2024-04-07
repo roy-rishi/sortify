@@ -17,7 +17,8 @@ const PORT = 3004;
 
 var options = {
     key: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/fullchain.pem')
+    cert: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/fullchain.pem'),
+    secureOptions: require('constants').SSL_OP_NO_TLSv1 | require('constants').SSL_OP_NO_TLSv1_1
 };
 
 const corsOptions = {
@@ -25,10 +26,21 @@ const corsOptions = {
     optionsSuccessStatus: 200 // legacy browsers
 };
 
-// start server
+// specify middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// CORS rules
 app.use(cors(corsOptions));
+// redirect HTTP to HTTPS
+app.set("trust proxy", true);
+app.use((req, res, next) => {
+    if (req.secure) {
+        next();
+    } else {
+        res.redirect('https://' + req.headers.host + req.url);
+    }
+});
+// start server
 https.createServer(options, app).listen(PORT);
 
 function createJWT(user, expiration_mins) {
