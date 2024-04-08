@@ -73,7 +73,7 @@ class SongRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(left: 16, right: 40),
         child: Card(
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: Clip.antiAlias,
           // color: theme.colorScheme.secondaryContainer,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -719,7 +719,7 @@ class _FilterPageState extends State<FilterPage> {
                                       }
                                       final int key = (await createSort(jsonEncode(trackMaps)));
                                       appState
-                                          .changePage(SortPageLoader(sortKey: key));
+                                          .changePage(SortPageLoader());
                                     },
                                     child: Text("Start Sorting"),
                                   ),
