@@ -126,17 +126,23 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
   for (int i = 0; i < filters.length; i++) {
     SortParameter filter = filters[i];
     if (filter.typeSelected == "Artist") {
-      selections.addArtist(Artist(name: filter.valueController.text));
+      selections.artists.add((Artist(name: filter.valueController.text)));
     } else if (filter.typeSelected == "Album") {
-      selections.addAlbum(Album(name: filter.valueController.text));
+      if (filter.actionSelected == "Include") {
+        selections.albums.add((Album(name: filter.valueController.text)));
+      } else {
+        selections.excludedAlbums
+            .add((Album(name: filter.valueController.text)));
+      }
     }
   }
   // fetch and parse api data for artists
-  for (final artist in selections.artists) {
+  for (Artist artist in selections.artists) {
     final artistData =
         jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
             as Map<String, dynamic>;
     artist.id = artistData["artists"]["items"][0]["id"];
+    artist.name = artistData["artists"]["items"][0]["name"];
     artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
     artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
     // fetch and parse api data for artist albums
@@ -161,8 +167,11 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
       artist.albums.add(newAlbum);
     }
   }
-  // fetch and parse api data for albums
-  for (final album in selections.albums) {
+  // fetch and parse api data for all albums
+  List<Album> albumsEntered = [];
+  albumsEntered.addAll(selections.albums);
+  albumsEntered.addAll(selections.excludedAlbums);
+  for (final album in albumsEntered) {
     final albumData = jsonDecode(await querySpotify(album.name, "album", 1, 0))
         as Map<String, dynamic>;
     album.id = albumData["albums"]["items"][0]["id"];
@@ -171,13 +180,14 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
     album.releaseDate = albumData["albums"]["items"][0]["release_date"];
   }
   // fetch and parse album tracks
-  List<Album> allAlbums = selections.albums;
-  for (final artist in selections.artists) {
-    for (final album in artist.albums) {
+  List<Album> allAlbums = [];
+  allAlbums.addAll(selections.albums);
+  for (Artist artist in selections.artists) {
+    for (Album album in artist.albums) {
       allAlbums.add(album);
     }
   }
-  for (final album in allAlbums) {
+  for (Album album in allAlbums) {
     final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0))
         as Map<String, dynamic>;
 
@@ -209,26 +219,22 @@ Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
 class SongManager {
   List<Artist> artists = [];
   List<Album> albums = [];
-
-  void addArtist(Artist artist) {
-    artists.add(artist);
-  }
-
-  void addAlbum(Album album) {
-    albums.add(album);
-  }
+  List<Album> excludedAlbums = [];
 
   List<Track> computeAllTracks() {
     List<Track> allTracks = [];
 
     for (final artist in artists) {
       for (final album in artist.albums) {
-        for (final track in album.tracks) {
-          allTracks.add(track);
+        // don't include tracks from excluded albums
+        if (!excludedAlbums.contains(album)) {
+          for (final track in album.tracks) {
+            allTracks.add(track);
+          }
         }
       }
     }
-    for (final album in albums) {
+    for (Album album in albums) {
       for (final track in album.tracks) {
         allTracks.add(track);
       }
@@ -275,6 +281,13 @@ class Album {
   Album({
     required this.name,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      other is Album && name == other.name && artistName == other.artistName;
+
+  @override
+  int get hashCode => Object.hash(name, artistName);
 }
 
 class Track {
@@ -431,82 +444,89 @@ class _SortParameterState extends State<SortParameter> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Card(
-                child: Row(
-                  children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(left: 25),
-                          child: SizedBox(
-                            width: 180,
-                            child: TextField(
-                              controller: widget.valueController,
-                              decoration: InputDecoration(labelText: "Name"),
+              SizedBox(
+                width: 500,
+                child: Card(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 25),
+                              child: TextField(
+                                controller: widget.valueController,
+                                decoration: InputDecoration(labelText: "Name"),
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                      if (widget.typeSelected == "Album")
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text("Action"),
+                              DropdownButton<String>(
+                                value: widget.actionSelected,
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    widget.actionSelected = newValue!;
+                                  });
+                                },
+                                items: <String>[
+                                  "Include",
+                                  "Exclude"
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    Padding(
-                      padding:
-                          const EdgeInsets.only(left: 30, top: 8, bottom: 8),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text("Type"),
-                          DropdownButton<String>(
-                            value: widget.typeSelected,
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                widget.typeSelected = newValue!;
-                              });
-                            },
-                            items: <String>["Artist", "Album"]
-                                .map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                          ),
-                        ],
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(left: 30, top: 8, bottom: 8),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text("Type"),
+                            DropdownButton<String>(
+                              value: widget.typeSelected,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  widget.typeSelected = newValue!;
+                                });
+                              },
+                              items: <String>[
+                                "Artist",
+                                "Album"
+                              ].map<DropdownMenuItem<String>>((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 30),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text("Action"),
-                          DropdownButton<String>(
-                            value: widget.actionSelected,
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                widget.actionSelected = newValue!;
-                              });
+                      Padding(
+                        padding: const EdgeInsets.only(left: 15, right: 15),
+                        child: IconButton(
+                            onPressed: () {
+                              widget.onDelete(widget.id);
                             },
-                            items: <String>["Include", "Exclude"]
-                                .map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 15, right: 15),
-                      child: IconButton(
-                          onPressed: () {
-                            widget.onDelete(widget.id);
-                          },
-                          icon: Icon(Icons.delete_outlined)),
-                    )
-                  ],
+                            icon: Icon(Icons.delete_outlined)),
+                      )
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -544,6 +564,17 @@ class _FilterPageState extends State<FilterPage> {
       color: theme.colorScheme.primary,
       fontWeight: FontWeight.w600,
     );
+    final plusStyle = theme.textTheme.headlineMedium!.copyWith(
+      color: theme.colorScheme.onPrimaryContainer,
+      fontWeight: FontWeight.w600,
+    );
+    final plusLabelStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: theme.colorScheme.onPrimaryContainer,
+    );
+    final subtitleStyle = theme.textTheme.headlineLarge!.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
+    );
 
     return Center(
       child: Column(
@@ -578,7 +609,7 @@ class _FilterPageState extends State<FilterPage> {
                           padding: const EdgeInsets.only(bottom: 30),
                           child: Text(
                             "Filters",
-                            style: theme.textTheme.headlineMedium,
+                            style: subtitleStyle,
                           ),
                         ),
                       ),
@@ -616,10 +647,9 @@ class _FilterPageState extends State<FilterPage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Text("+",
-                                              style: theme
-                                                  .textTheme.headlineMedium),
-                                          Text("Add Filter"),
+                                          Text("+", style: plusStyle),
+                                          Text("Add Filter",
+                                              style: plusLabelStyle),
                                         ],
                                       )),
                                 ),
@@ -666,77 +696,80 @@ class _FilterPageState extends State<FilterPage> {
                   ),
                 ),
                 // RIGHT PANEL
-                Expanded(
-                  child: ListView(
-                    physics: BouncingScrollPhysics(),
-                    padding: const EdgeInsets.all(8),
-                    children: <Widget>[
-                      // if loading icon should be displayed
-                      if (calculatingTracksToSort)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                SizedBox(
-                                  // height: 40,
-                                  // width: 40,
-                                  child: CircularProgressIndicator(
-                                    value: null,
+                if (tracksToSort.isNotEmpty || calculatingTracksToSort)
+                  Expanded(
+                    child: ListView(
+                      physics: BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(8),
+                      children: <Widget>[
+                        // if loading icon should be displayed
+                        if (calculatingTracksToSort)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Column(
+                                children: [
+                                  SizedBox(
+                                    // height: 40,
+                                    // width: 40,
+                                    child: CircularProgressIndicator(
+                                      value: null,
+                                    ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(18),
-                                  child: Text("Getting songs from Spotify"),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      if (!calculatingTracksToSort && tracksToSort.isEmpty)
-                        Center(
-                            child: Text("Edit your filters to include songs")),
-                      // if continue button should be displayed
-                      if (!calculatingTracksToSort && tracksToSort.isNotEmpty)
-                        Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  height: 45,
-                                  child: ElevatedButton(
-                                    style: ButtonStyle(
-                                        backgroundColor:
-                                            MaterialStateProperty.all<Color>(
-                                                theme.colorScheme
-                                                    .primaryContainer)),
-                                    onPressed: () async {
-                                      List<Map<String, dynamic>> trackMaps = [];
-                                      for (SongRow songRow in tracksToSort) {
-                                        Track track = songRow.track;
-                                        trackMaps.add(track.toMap());
-                                      }
-                                      final int key = (await createSort(jsonEncode(trackMaps)));
-                                      appState
-                                          .changePage(SortPageLoader());
-                                    },
-                                    child: Text("Start Sorting"),
+                                  Padding(
+                                    padding: const EdgeInsets.all(18),
+                                    child: Text("Getting songs from Spotify"),
                                   ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                  "${tracksToSort.length} Results, Approximately ${(tracksToSort.length * log(tracksToSort.length)).round()} Battles"),
-                            ),
-                          ],
-                        ),
-                      ...tracksToSort, // populate the right panel of songs
-                    ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        if (!calculatingTracksToSort && tracksToSort.isEmpty)
+                          Center(
+                              child:
+                                  Text("Edit your filters to include songs")),
+                        // if continue button should be displayed
+                        if (!calculatingTracksToSort && tracksToSort.isNotEmpty)
+                          Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 45,
+                                    child: ElevatedButton(
+                                      style: ButtonStyle(
+                                          backgroundColor:
+                                              MaterialStateProperty.all<Color>(
+                                                  theme.colorScheme
+                                                      .primaryContainer)),
+                                      onPressed: () async {
+                                        List<Map<String, dynamic>> trackMaps =
+                                            [];
+                                        for (SongRow songRow in tracksToSort) {
+                                          Track track = songRow.track;
+                                          trackMaps.add(track.toMap());
+                                        }
+                                        final int key = (await createSort(
+                                            jsonEncode(trackMaps)));
+                                        appState.changePage(SortPageLoader());
+                                      },
+                                      child: Text("Start Sorting"),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                    "${tracksToSort.length} Results, Approximately ${(tracksToSort.length * log(tracksToSort.length)).round()} Battles"),
+                              ),
+                            ],
+                          ),
+                        ...tracksToSort, // populate the right panel of songs
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
