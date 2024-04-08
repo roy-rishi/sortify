@@ -73,7 +73,7 @@ class SongRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(left: 16, right: 40),
         child: Card(
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: Clip.antiAlias,
           // color: theme.colorScheme.secondaryContainer,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
