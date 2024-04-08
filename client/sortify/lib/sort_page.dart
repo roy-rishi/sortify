@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -12,6 +10,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 import 'filter_page.dart';
 import 'app_state.dart';
@@ -388,7 +387,7 @@ class _SortPageState extends State<SortPage> {
         HttpHeaders.authorizationHeader: "Bearer $storedJwt"
       },
       body: jsonEncode(<String, dynamic>{
-        "songs": trackMaps,
+        "songs": jsonEncode(trackMaps),
       }),
     );
 
@@ -485,8 +484,7 @@ class _SortPageState extends State<SortPage> {
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
                                     saveCompletedSort(nextPair);
-                                    appState.changePage(
-                                        ResultsPage(tracks: nextPair));
+                                    appState.changePage(ResultsLoader());
                                   } else {
                                     setState(() {
                                       left = nextPair[0];
@@ -523,8 +521,7 @@ class _SortPageState extends State<SortPage> {
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
                                     saveCompletedSort(nextPair);
-                                    appState.changePage(
-                                        ResultsPage(tracks: nextPair));
+                                    appState.changePage(ResultsLoader());
                                   } else {
                                     setState(() {
                                       left = nextPair[0];
@@ -577,8 +574,8 @@ class _SortPageState extends State<SortPage> {
               message: "Delete Permanently",
               child: IconButton(
                 color: theme.colorScheme.secondary,
-                onPressed: () {
-                  deleteIncompleteSort(widget.sortKey);
+                onPressed: () async {
+                  final res = await deleteIncompleteSort(widget.sortKey);
                   setState(() {
                     goHome = true;
                   });
