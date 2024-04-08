@@ -26,7 +26,6 @@ Future<List<dynamic>> loadResults() async {
       });
 
   if (response.statusCode == 200) {
-    print(response.body); // remove
     return json.decode(response.body);
   }
   throw Exception(response.body);

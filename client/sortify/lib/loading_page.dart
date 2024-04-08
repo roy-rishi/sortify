@@ -91,9 +91,11 @@ class _LoadingPageState extends State<LoadingPage> {
                       appState.changePage(HomePage());
                     });
                   }
-                  return Text(snapshot.data.toString());
+                  // return Text(snapshot.data.toString());
+                } else {
+                  return Text("Connection failed");
                 }
-                return Text("Connection failed");
+                return Text("");
               },
             ),
           ],

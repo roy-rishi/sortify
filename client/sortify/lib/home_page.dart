@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sortify/filter_page.dart';
 
 import 'package:http/http.dart' as http;
+import 'package:sortify/loading_page.dart';
 import 'package:sortify/sort_page.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -91,6 +92,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    var appState = context.watch<AppState>();
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
@@ -138,7 +140,7 @@ class _HomePageState extends State<HomePage> {
                                 );
                               }
                               if (snapshot.hasError) {
-                                return Text('Error: ${snapshot.error}');
+                                return Text("${snapshot.error}");
                               }
                               if (snapshot.data == null) {
                                 return Text("No data");
@@ -216,19 +218,24 @@ class _HomePageState extends State<HomePage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                IconButton(
-                                  onPressed: () {
-                                    print("Pressed");
-                                  },
-                                  icon: Icon(Icons.settings_outlined),
-                                  color: theme.colorScheme.primary,
-                                ),
-                                IconButton(
-                                  onPressed: () {
-                                    print("Pressed");
-                                  },
-                                  icon: Icon(Icons.logout_rounded),
-                                  color: theme.colorScheme.primary,
+                                // IconButton(
+                                //   onPressed: () {
+                                //     print("Pressed");
+                                //   },
+                                //   icon: Icon(Icons.settings_outlined),
+                                //   color: theme.colorScheme.primary,
+                                // ),
+                                Tooltip(
+                                  message: "Sign Out",
+                                  child: IconButton(
+                                    onPressed: () async {
+                                      print("Signing out...");
+                                      await storage.write(key: "jwt", value: "lol");
+                                      appState.changePage(LoadingPage());
+                                    },
+                                    icon: Icon(Icons.logout_rounded),
+                                    color: theme.colorScheme.primary,
+                                  ),
                                 ),
                               ],
                             )
