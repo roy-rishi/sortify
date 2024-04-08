@@ -11,6 +11,7 @@ const qs = require('querystring');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
+const constants = require('constants');
 
 const app = express();
 const PORT = 3004;
@@ -18,7 +19,8 @@ const PORT = 3004;
 var options = {
     key: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/privkey.pem'),
     cert: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/fullchain.pem'),
-    secureOptions: require('constants').SSL_OP_NO_TLSv1 | require('constants').SSL_OP_NO_TLSv1_1
+    // disable tls1.0 and tls1.1
+    secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1
 };
 
 const corsOptions = {
@@ -442,15 +444,13 @@ app.get('/get-incomplete-sort', (req, res) => {
 
     if (req.headers.authorization == null)
         return res.status(401).send("Missing auth token");
-    if (!req.query.key)
-        return res.status(400).send("Missing key in query");
 
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
             return res.status(401).send(err.message);
 
-        incomplete_db.get(`SELECT * FROM Incomplete WHERE Key = ?`, [req.query.key], function (err, item) {
+        incomplete_db.get(`SELECT * FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err, item) {
             if (err)
                 return res.status(500).send(err.message);
             if (item) {
@@ -465,8 +465,6 @@ app.get('/get-incomplete-sort', (req, res) => {
 app.post('/add-comparison', (req, res) => {
     console.log("\n/add-comparison");
 
-    if (!req.body.key)
-        return res.status(422).send("Missing key");
     if (!req.headers.authorization)
         return res.status(401).send("Missing auth token");
 
@@ -477,7 +475,7 @@ app.post('/add-comparison', (req, res) => {
 
         const newValue = req.body.value;
 
-        incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE Key = ?`, [req.body.key], function (err, row) {
+        incomplete_db.get(`SELECT Comparisons FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err, row) {
             if (err) {
                 return res.status(500).send(err.message);
             }
@@ -501,7 +499,7 @@ app.post('/add-comparison', (req, res) => {
             existingData.push(newValue);
             console.log(existingData);
 
-            incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE Key = ? AND User = ?`, [JSON.stringify(existingData), req.body.key, verified_jwt.body.email], function (err) {
+            incomplete_db.run(`UPDATE Incomplete SET Comparisons = ? WHERE User = ?`, [JSON.stringify(existingData), verified_jwt.body.email], function (err) {
                 if (err)
                     return res.status(500).send(err.message);
                 return res.send("Saved");
@@ -538,18 +536,18 @@ app.post('/add-completed-sort', (req, res) => {
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
             return res.status(401).send(err.message);
+
+        // add sort to database
         complete_db.run(`INSERT INTO Complete(Date, Songs, User) VALUES (?, ?, ?)`, [Date.now(), req.body.songs, verified_jwt.body.email], function (err) {
             if (err) {
                 return res.status(500).send(err.message);
             }
-            else {
-                // delete respective incompleted sort (remove all incompletes of this User)
-                incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
-                    if (err)
-                        return res.status(500).send(err.message);
-                    return res.send("Added sort to database");
-                });
-            }
+            // delete respective incompleted sort (remove all incompletes of this User)
+            incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
+                if (err)
+                    return res.status(500).send(err.message);
+                return res.send("Added sort to database");
+            });
         });
     });
 });
@@ -559,8 +557,6 @@ app.post('/delete-incomplete-sort', (req, res) => {
 
     if (req.headers.authorization == null)
         return res.status(401).send("Missing auth token");
-    if (req.body.key == null)
-        return res.status(400).send("Missing sort key");
 
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
@@ -568,10 +564,30 @@ app.post('/delete-incomplete-sort', (req, res) => {
             return res.status(401).send(err.message);
 
         // delete respective incompleted sort (remove all incompletes of this User)
-        incomplete_db.run(`DELETE FROM Incomplete WHERE Key = ? AND User = ?`, [req.body.key, verified_jwt.body.email], function (err) {
+        incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
             if (err)
                 return res.status(500).send(err.message);
             return res.send("Removed sort from database");
+        });
+    });
+});
+
+app.get('/all-sorts', (req, res) => {
+    console.log("\n/all-sorts");
+
+    if (req.headers.authorization == null)
+        return res.status(401).send("Missing auth token");
+
+    const token = req.headers.authorization.toString().split(" ")[1];
+    jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
+        if (err)
+            return res.status(401).send(err.message);
+
+        complete_db.all(`SELECT * FROM Complete WHERE User = ?`, [verified_jwt.body.email], function (err, rows) {
+            if (err)
+                return res.status(500).send(err.message);
+
+            res.send(JSON.stringify(rows));
         });
     });
 });
