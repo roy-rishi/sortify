@@ -30,9 +30,14 @@ class CardRowItem extends StatelessWidget {
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
     final theme = Theme.of(context);
+    final buttonLabelStyle = theme.textTheme.titleMedium!.copyWith(
+      color: theme.colorScheme.onPrimaryContainer,
+      fontWeight: FontWeight.w500,
+      fontSize: 17,
+    );
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.only(top: 14, bottom: 14),
       child: AspectRatio(
         aspectRatio: 4 / 3,
         child: Card(
@@ -46,8 +51,8 @@ class CardRowItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: 26),
-                  Text(text),
+                  Icon(icon, size: 30, color: theme.colorScheme.onPrimaryContainer),
+                  Text(text, style: buttonLabelStyle),
                 ],
               )),
         ),
@@ -96,10 +101,14 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayLarge!.copyWith(
       color: theme.colorScheme.primary,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
       fontSize: 80,
     );
-    final heading2Style = theme.textTheme.headlineMedium;
+    final heading2Style = theme.textTheme.headlineLarge!.copyWith(
+      color: theme.colorScheme.onBackground,
+      fontWeight: FontWeight.w500,
+      fontSize: 34,
+    );
 
     return Center(
       child: SizedBox(
@@ -118,24 +127,32 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Card.outlined(
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AspectRatio(
-                          aspectRatio: 1 / 1,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 18, right: 18),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text("Sorting", style: heading2Style),
-                              Icon(Icons.sports_esports_outlined),
+                              Icon(
+                                Icons.sports_esports_outlined,
+                                color: theme.colorScheme.onBackground,
+                                size: 30,
+                              ),
                             ],
                           ),
                         ),
-                        FutureBuilder(
+                        Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: FutureBuilder(
                             future: incompletesExist(),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
                                 return Padding(
-                                  padding: const EdgeInsets.only(left: 65, right: 65),
+                                  padding:
+                                      const EdgeInsets.only(left: 65, right: 65),
                                   child: CircularProgressIndicator(),
                                 );
                               }
@@ -158,11 +175,9 @@ class _HomePageState extends State<HomePage> {
                                   nextPage: SortPageLoader(),
                                 );
                               }
-                            }),
-                        // CardRowItem(
-                        //     text: "Start Round",
-                        //     icon: Icons.play_arrow_outlined,
-                        //     nextPage: FilterPage()),
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -179,17 +194,24 @@ class _HomePageState extends State<HomePage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CardRowItem(
-                            text: "Your Sorts",
-                            icon: Icons.person_2_outlined,
-                            nextPage: ResultsLoader()),
-                        AspectRatio(
-                          aspectRatio: 1 / 1,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 14),
+                          child: CardRowItem(
+                              text: "Your Sorts",
+                              icon: Icons.person_2_outlined,
+                              nextPage: ResultsLoader()),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 18, right: 18),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text("Results", style: heading2Style),
-                              Icon(Icons.history),
+                              Icon(
+                                Icons.history,
+                                color: theme.colorScheme.onBackground,
+                                size: 30,
+                              ),
                             ],
                           ),
                         ),
@@ -218,23 +240,16 @@ class _HomePageState extends State<HomePage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // IconButton(
-                                //   onPressed: () {
-                                //     print("Pressed");
-                                //   },
-                                //   icon: Icon(Icons.settings_outlined),
-                                //   color: theme.colorScheme.primary,
-                                // ),
                                 Tooltip(
                                   message: "Sign Out",
                                   child: IconButton(
                                     onPressed: () async {
                                       print("Signing out...");
-                                      await storage.write(key: "jwt", value: "lol");
+                                      await storage.write(
+                                          key: "jwt", value: "lol");
                                       appState.changePage(LoadingPage());
                                     },
                                     icon: Icon(Icons.logout_rounded),
-                                    color: theme.colorScheme.primary,
                                   ),
                                 ),
                               ],
