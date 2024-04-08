@@ -10,6 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'app_state.dart';
 import 'constants.dart';
+import 'results_page.dart';
 
 final storage = FlutterSecureStorage();
 
@@ -28,14 +29,9 @@ class CardRowItem extends StatelessWidget {
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
     final theme = Theme.of(context);
-    const double paddingDist = 18;
 
     return Padding(
-      padding: const EdgeInsets.only(
-          top: paddingDist,
-          bottom: paddingDist,
-          right: paddingDist / 2,
-          left: paddingDist / 2),
+      padding: const EdgeInsets.all(14),
       child: AspectRatio(
         aspectRatio: 4 / 3,
         child: Card(
@@ -105,7 +101,7 @@ class _HomePageState extends State<HomePage> {
 
     return Center(
       child: SizedBox(
-        width: 670,
+        width: 700,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -136,7 +132,10 @@ class _HomePageState extends State<HomePage> {
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
-                                return CircularProgressIndicator();
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 65, right: 65),
+                                  child: CircularProgressIndicator(),
+                                );
                               }
                               if (snapshot.hasError) {
                                 return Text('Error: ${snapshot.error}');
@@ -154,8 +153,7 @@ class _HomePageState extends State<HomePage> {
                                 return CardRowItem(
                                   text: "Resume Round",
                                   icon: Icons.play_arrow_outlined,
-                                  nextPage:
-                                      SortPageLoader(sortKey: snapshot.data!),
+                                  nextPage: SortPageLoader(),
                                 );
                               }
                             }),
@@ -182,7 +180,7 @@ class _HomePageState extends State<HomePage> {
                         CardRowItem(
                             text: "Your Sorts",
                             icon: Icons.person_2_outlined,
-                            nextPage: const Text("Your Sortszes")),
+                            nextPage: ResultsLoader()),
                         AspectRatio(
                           aspectRatio: 1 / 1,
                           child: Column(

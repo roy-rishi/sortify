@@ -719,7 +719,7 @@ class _FilterPageState extends State<FilterPage> {
                                       }
                                       final int key = (await createSort(jsonEncode(trackMaps)));
                                       appState
-                                          .changePage(SortPageLoader(sortKey: key));
+                                          .changePage(SortPageLoader());
                                     },
                                     child: Text("Start Sorting"),
                                   ),
