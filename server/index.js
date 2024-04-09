@@ -548,7 +548,7 @@ app.post('/add-completed-sort', (req, res) => {
             if (err)
                 return res.status(500).send(err.message);
             if (!row || !row.Filters)
-                return res.status(500).send(err.message);
+                return res.status(400).send("Could not find incomplete sort");
             filters = row.Filters;
             console.log(filters);
 
