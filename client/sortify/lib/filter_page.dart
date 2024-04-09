@@ -13,11 +13,12 @@ import 'dart:collection';
 
 import 'app_state.dart';
 import 'constants.dart';
+import 'login_popup.dart';
 
 final storage = FlutterSecureStorage();
 
 // create a sort, return server-provided id
-Future<String> createSort(String tracksJson, String filtersJson) async {
+Future<String> createSort(String tracksJson, String filtersJson, BuildContext context) async {
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/create-sort"),
@@ -34,8 +35,8 @@ Future<String> createSort(String tracksJson, String filtersJson) async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401) {
-    throw Exception("Login page");
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
@@ -290,7 +291,7 @@ List<SortParameter> filterWidgets = [];
 // search for artist, album, or track
 // name: name of item, type: "artist", "album", or "track"
 Future<String> querySpotify(
-    String name, String type, int limit, int offset) async {
+    String name, String type, int limit, int offset, BuildContext context) async {
   final queryParameters = {
     "query": "$type:$name",
     "type": type,
@@ -310,13 +311,13 @@ Future<String> querySpotify(
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401) {
-    throw UnimplementedError("Login Popup");
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
 
-Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
+Future<String> artistAlbumsSpotify(String id, int limit, int offset, BuildContext context) async {
   final queryParameters = {
     "id": id,
     "limit": limit.toString(),
@@ -336,13 +337,13 @@ Future<String> artistAlbumsSpotify(String id, int limit, int offset) async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401) {
-    throw UnimplementedError("Login Popup");
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
 
-Future<String> albumTracksSpotify(String id, int limit, int offset) async {
+Future<String> albumTracksSpotify(String id, int limit, int offset, BuildContext context) async {
   final queryParameters = {
     "id": id,
     "limit": limit.toString(),
@@ -362,8 +363,8 @@ Future<String> albumTracksSpotify(String id, int limit, int offset) async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401) {
-    throw UnimplementedError("Login Popup");
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
@@ -524,7 +525,7 @@ class _FilterPageState extends State<FilterPage> {
     // fetch and parse api data for artists
     for (Artist artist in selections.artists) {
       final artistData =
-          jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
+          jsonDecode(await querySpotify(artist.name, "artist", 1, 0, context))
               as Map<String, dynamic>;
       artist.id = artistData["artists"]["items"][0]["id"];
       artist.name = artistData["artists"]["items"][0]["name"];
@@ -533,7 +534,7 @@ class _FilterPageState extends State<FilterPage> {
       artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
       // fetch and parse api data for artist albums
       final artistAlbumData =
-          jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
+          jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0, context))
               as Map<String, dynamic>;
       for (int i = 0; i < artistAlbumData["items"].length; i++) {
         bool sameArtist = false;
@@ -561,7 +562,7 @@ class _FilterPageState extends State<FilterPage> {
     albumsEntered.addAll(selections.excludedAlbums);
     for (final album in albumsEntered) {
       final albumData =
-          jsonDecode(await querySpotify(album.name, "album", 1, 0))
+          jsonDecode(await querySpotify(album.name, "album", 1, 0, context))
               as Map<String, dynamic>;
       album.id = albumData["albums"]["items"][0]["id"];
       album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
@@ -577,7 +578,7 @@ class _FilterPageState extends State<FilterPage> {
       }
     }
     for (Album album in allAlbums) {
-      final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0))
+      final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0, context))
           as Map<String, dynamic>;
 
       for (int i = 0; i < tracksData["items"].length; i++) {
@@ -805,6 +806,7 @@ class _FilterPageState extends State<FilterPage> {
                                         await createSort(
                                           jsonEncode(trackMaps),
                                           selections.serializeFilters(),
+                                          context,
                                         );
                                         appState.changePage(SortPageLoader());
                                       },
