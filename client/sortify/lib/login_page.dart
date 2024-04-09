@@ -141,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.only(right: 8),
                     child: TextButton(
                         onPressed: () {
+                          appState.updatePanelIndex(0);
                           appState.email = _emailController.text.trim();
                           appState.changePage(SignUpPage());
                         },

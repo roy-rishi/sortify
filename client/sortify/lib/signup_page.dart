@@ -54,10 +54,24 @@ Future<String> createUser(String pass, String name, String token) async {
   throw Exception(response.body);
 }
 
-class SendEmailPanel extends StatelessWidget {
+class SendEmailPanel extends StatefulWidget {
   const SendEmailPanel({Key? key, required this.email}) : super(key: key);
 
   final String email;
+
+  @override
+  State<SendEmailPanel> createState() => _SendEmailPanelState();
+}
+
+class _SendEmailPanelState extends State<SendEmailPanel> {
+  final TextEditingController _emailController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _emailController.text = widget.email;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,34 +80,48 @@ class SendEmailPanel extends StatelessWidget {
     return Column(children: [
       Padding(
         padding: const EdgeInsets.only(top: 24, bottom: 6),
-        child: Text("An email will be sent to $email"),
+        child: Text("An email will be sent to"),
       ),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton(
-              onPressed: () {
-                appState.changePage(LoginPage());
-              },
-              child: Text("Or, Login"),
+      SizedBox(
+        width: 320,
+        height: 42,
+        child: TextField(
+          controller: _emailController,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: "Email",
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
+                onPressed: () {
+                  appState.changePage(LoginPage());
+                },
+                child: Text("Or, Login"),
+              ),
             ),
-          ),
-          OutlinedButton(
-            onPressed: () {
-              print("Sending email");
-              verifyEmail(appState.email);
-              appState.updatePanelIndex(1); // move to next panel
-
-              var snackBar = SnackBar(
-                content: Center(child: Text("Email Sent")),
-              );
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            },
-            child: Text("Send"),
-          ),
-        ],
+            OutlinedButton(
+              onPressed: () {
+                print("Sending email");
+                verifyEmail(_emailController.text);
+                appState.updatePanelIndex(1); // move to next panel
+        
+                var snackBar = SnackBar(
+                  content: Center(child: Text("Email Sent")),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(snackBar);
+              },
+              child: Text("Send"),
+            ),
+          ],
+        ),
       ),
     ]);
   }
@@ -115,11 +143,6 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
-    // final theme = Theme.of(context);
-    // final titleStyle = theme.textTheme.headlineMedium!.copyWith(
-    //   color: theme.colorScheme.primary,
-    //   fontWeight: FontWeight.w600,
-    // );
 
     return Column(
       children: [
