@@ -214,7 +214,7 @@ app.post('/email-status', (req, res) => {
     if (req.body.email == null)
         return res.status(442).send("Missing body.email");
 
-    users_db.get(`SELECT * FROM users WHERE Email = ?`, [req.body.email], (err, row) => {
+    users_db.get(`SELECT * FROM Users WHERE Email = ?`, [req.body.email], (err, row) => {
         if (err)
             return res.status(500).send(err.message);
         return res.send(row ? "Email is registered" : "Email not registered");
@@ -417,21 +417,23 @@ app.post('/spotify/album-tracks', async (req, res) => {
     });
 });
 
-// add an incomplete sort to db, requires users and songs
+// add an incomplete sort to db, requires users, songs, and filters
 app.post('/create-sort', (req, res) => {
     console.log("\n/create-sort");
 
-    if (!req.body.songs)
-        return res.status(400).send("Missing list of songs");
     if (!req.headers.authorization)
         return res.status(401).send("Missing auth token");
+    if (!req.body.songs)
+        return res.status(400).send("Missing list of songs");
+    if (!req.body.filters)
+        return res.status(400).send("Missing list of filters filters");
 
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
             return res.status(401).send(err.message);
 
-        incomplete_db.run(`INSERT INTO Incomplete(Date, User, Songs) VALUES (?, ?, ?)`, [Date.now(), verified_jwt.body.email, req.body.songs], function (err) {
+        incomplete_db.run(`INSERT INTO Incomplete(Date, User, Songs, Filters) VALUES (?, ?, ?, ?)`, [Date.now(), verified_jwt.body.email, req.body.songs, req.body.filters], function (err) {
             if (err)
                 return res.status(500).send(err.message);
             return res.send(this.lastID.toString());
@@ -531,22 +533,34 @@ app.post('/add-completed-sort', (req, res) => {
 
     if (req.headers.authorization == null)
         return res.status(401).send("Missing auth token");
+    if (!req.body.songs)
+        return res.status(400).send("Missing list of filters filters");
+    filters = null;
 
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
             return res.status(401).send(err.message);
 
-        // add sort to database
-        complete_db.run(`INSERT INTO Complete(Date, Songs, User) VALUES (?, ?, ?)`, [Date.now(), req.body.songs, verified_jwt.body.email], function (err) {
-            if (err) {
+        // get filters from incomplete db
+        incomplete_db.get(`SELECT * FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err, row) {
+            if (err)
                 return res.status(500).send(err.message);
-            }
-            // delete respective incompleted sort (remove all incompletes of this User)
-            incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
+            if (!row || !row.Filters)
+                return res.status(500).send(err.message);
+            filters = row.Filters;
+            console.log(filters);
+
+            // add sort to database
+            complete_db.run(`INSERT INTO Complete(Date, Songs, User, Filters) VALUES (?, ?, ?, ?)`, [Date.now(), req.body.songs, verified_jwt.body.email, filters], function (err) {
                 if (err)
                     return res.status(500).send(err.message);
-                return res.send("Added sort to database");
+                // delete respective incompleted sort (remove all incompletes of this User)
+                incomplete_db.run(`DELETE FROM Incomplete WHERE User = ?`, [verified_jwt.body.email], function (err) {
+                    if (err)
+                        return res.status(500).send(err.message);
+                    return res.send("Added sort to database");
+                });
             });
         });
     });
