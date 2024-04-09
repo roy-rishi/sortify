@@ -162,14 +162,12 @@ class SongCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final nameStyle = theme.textTheme.labelLarge!.copyWith(
-      // color: theme.colorScheme.secondary,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w900,
       fontSize: 17.5,
     );
     final albumStyle = theme.textTheme.labelLarge!.copyWith(
-      // color: theme.colorScheme.secondary,
-      fontWeight: FontWeight.w400,
-      fontSize: 16.5,
+      fontWeight: FontWeight.w100,
+      fontSize: 15.5,
     );
     final artistSyle = theme.textTheme.bodySmall!.copyWith(
       fontSize: 13.5,

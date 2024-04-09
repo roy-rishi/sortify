@@ -64,15 +64,21 @@ class SendEmailPanel extends StatelessWidget {
     var appState = context.watch<AppState>();
 
     return Column(children: [
-      Text("An email will be sent to $email"),
+      Padding(
+        padding: const EdgeInsets.only(top: 24, bottom: 6),
+        child: Text("An email will be sent to $email"),
+      ),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          TextButton(
-            onPressed: () {
-              appState.changePage(LoginPage());
-            },
-            child: Text("Or, Login"),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: () {
+                appState.changePage(LoginPage());
+              },
+              child: Text("Or, Login"),
+            ),
           ),
           OutlinedButton(
             onPressed: () {
@@ -109,25 +115,42 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<AppState>();
+    // final theme = Theme.of(context);
+    // final titleStyle = theme.textTheme.headlineMedium!.copyWith(
+    //   color: theme.colorScheme.primary,
+    //   fontWeight: FontWeight.w600,
+    // );
 
     return Column(
       children: [
-        Text("Enter the code sent to your email"),
+        Padding(
+          padding: const EdgeInsets.only(top: 24, bottom: 6),
+          child: Column(
+            children: [
+              Text("Enter the code sent to your email"),
+              Text("It may take up to 2 minutes to arrive"),
+            ],
+          ),
+        ),
         SizedBox(
           width: 320,
-          height: 42,
+          height: 52,
           child: TextField(
             controller: _codeController,
+            maxLines: 1,
             decoration: InputDecoration(
               border: OutlineInputBorder(),
               labelText: "Code",
             ),
           ),
         ),
-        Text("Enter your name"),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 6),
+          child: Text("Enter your name"),
+        ),
         SizedBox(
           width: 320,
-          height: 42,
+          height: 52,
           child: TextField(
             controller: _nameController,
             decoration: InputDecoration(
@@ -136,10 +159,13 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
             ),
           ),
         ),
-        Text("Create password"),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 6),
+          child: Text("Create a password"),
+        ),
         SizedBox(
           width: 320,
-          height: 42,
+          height: 52,
           child: TextField(
             obscureText: true,
             controller: _pass1Controller,
@@ -149,10 +175,13 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
             ),
           ),
         ),
-        Text("Reenter password"),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 6),
+          child: Text("Reenter password"),
+        ),
         SizedBox(
           width: 320,
-          height: 42,
+          height: 52,
           child: TextField(
             obscureText: true,
             controller: _pass2Controller,
@@ -162,63 +191,66 @@ class _VerifyEmailPanelState extends State<VerifyEmailPanel> {
             ),
           ),
         ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton(
-              onPressed: () {
-                appState.changePage(LoginPage());
-              },
-              child: Text("Or, Login"),
-            ),
-            OutlinedButton(
-                onPressed: () async {
-                  var errors = "";
-                  // code field is empty
-                  if (_codeController.text.trim() == "") {
-                    errors += "Code field is empty. ";
-                  } // code field is empty
-                  if (_nameController.text.trim() == "") {
-                    errors += "Name field is empty. ";
-                  } // 1st password field is empty
-                  if (_pass1Controller.text.trim() == "") {
-                    errors += "Password field is empty. ";
-                  } // 2nd password field is empty
-                  if (_pass2Controller.text.trim() == "") {
-                    errors += "Password confirmation field is empty. ";
-                  } // both password fields have a value, but they do not match
-                  if (_pass1Controller.text.trim() !=
-                          _pass2Controller.text.trim() &&
-                      _pass1Controller.text.trim() != "" &&
-                      _pass2Controller.text.trim() != "") {
-                    errors += "Passwords do not match. ";
-                  }
-                  // form has errors
-                  if (errors != "") {
-                    var snackBar = SnackBar(
-                      content: Center(child: Text(errors)),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                    return;
-                  } else {
-                    var status = await createUser(
-                        _pass1Controller.text.trim(),
-                        _nameController.text.trim(),
-                        _codeController.text.trim());
-                    if (status.toString() != "Created user") {
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () {
+                  appState.changePage(LoginPage());
+                },
+                child: Text("Or, Login"),
+              ),
+              OutlinedButton(
+                  onPressed: () async {
+                    var errors = "";
+                    // code field is empty
+                    if (_codeController.text.trim() == "") {
+                      errors += "Code field is empty. ";
+                    } // code field is empty
+                    if (_nameController.text.trim() == "") {
+                      errors += "Name field is empty. ";
+                    } // 1st password field is empty
+                    if (_pass1Controller.text.trim() == "") {
+                      errors += "Password field is empty. ";
+                    } // 2nd password field is empty
+                    if (_pass2Controller.text.trim() == "") {
+                      errors += "Password confirmation field is empty. ";
+                    } // both password fields have a value, but they do not match
+                    if (_pass1Controller.text.trim() !=
+                            _pass2Controller.text.trim() &&
+                        _pass1Controller.text.trim() != "" &&
+                        _pass2Controller.text.trim() != "") {
+                      errors += "Passwords do not match. ";
+                    }
+                    // form has errors
+                    if (errors != "") {
                       var snackBar = SnackBar(
-                        content: Center(child: Text(status.toString())),
+                        content: Center(child: Text(errors)),
                       );
                       ScaffoldMessenger.of(context).showSnackBar(snackBar);
                       return;
                     } else {
-                      appState.changePage(LoginPage());
+                      var status = await createUser(
+                          _pass1Controller.text.trim(),
+                          _nameController.text.trim(),
+                          _codeController.text.trim());
+                      if (status.toString() != "Created user") {
+                        var snackBar = SnackBar(
+                          content: Center(child: Text(status.toString())),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                        return;
+                      } else {
+                        appState.changePage(LoginPage());
+                      }
+                      return;
                     }
-                    return;
-                  }
-                },
-                child: Text("Continue")),
-          ],
+                  },
+                  child: Text("Continue")),
+            ],
+          ),
         )
       ],
     );
@@ -240,6 +272,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final theme = Theme.of(context);
     final titleStyle = theme.textTheme.displayMedium!.copyWith(
       color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w900,
     );
 
     Widget panel;

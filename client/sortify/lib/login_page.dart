@@ -48,6 +48,9 @@ Future<bool> attemptLogin(String email, String password) async {
   } else if (response.statusCode == 401) {
     print("Authorization not successful");
     return false;
+  } else if (response.body == "Email not found") {
+    // should sign up
+    return false;
   }
   throw Exception(response.body);
 }
@@ -131,34 +134,50 @@ class _LoginPageState extends State<LoginPage> {
             ),
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: SizedBox(
-                height: 40,
-                child: OutlinedButton(
-                  onPressed: () {
-                    if (emailRegStatus == "Unverified") {
-                      setState(() {
-                        futureEmailStatus =
-                            emailStatus(_emailController.text.trim());
-                      });
-                    } else if (emailRegStatus == "Email is registered") {
-                      attemptLogin(_emailController.text.trim(),
-                              _passwordController.text.trim())
-                          .then((loginStatus) {
-                        if (loginStatus) {
-                          appState.changePage(HomePage());
-                        } else {
-                          var snackBar = SnackBar(
-                            content: Center(child: Text("Invalid Login Credentials")),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: TextButton(
+                        onPressed: () {
+                          appState.email = _emailController.text.trim();
+                          appState.changePage(SignUpPage());
+                        },
+                        child: Text("Or, Sign Up")),
+                  ),
+                  SizedBox(
+                    height: 38,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        if (emailRegStatus == "Unverified") {
+                          setState(() {
+                            futureEmailStatus =
+                                emailStatus(_emailController.text.trim());
+                          });
+                        } else if (emailRegStatus == "Email is registered") {
+                          attemptLogin(_emailController.text.trim(),
+                                  _passwordController.text.trim())
+                              .then((loginStatus) {
+                            if (loginStatus) {
+                              appState.changePage(HomePage());
+                            } else {
+                              var snackBar = SnackBar(
+                                content: Center(
+                                    child: Text("Invalid Login Credentials")),
+                              );
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(snackBar);
+                            }
+                          }).catchError((error) {
+                            print(error);
+                          });
                         }
-                      }).catchError((error) {
-                        print(error);
-                      });
-                    }
-                  },
-                  child: Text("Continue"),
-                ),
+                      },
+                      child: Text("Continue"),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

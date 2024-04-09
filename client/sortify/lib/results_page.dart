@@ -97,7 +97,7 @@ class _ResultCardState extends State<ResultCard> {
     final theme = Theme.of(context);
     final dateStyle = theme.textTheme.headlineMedium!.copyWith(
       color: theme.colorScheme.primary,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w900,
     );
     final timeStyle = theme.textTheme.bodyLarge!.copyWith(
       color: theme.colorScheme.secondary,
@@ -105,12 +105,12 @@ class _ResultCardState extends State<ResultCard> {
     );
     final includedStyle = theme.textTheme.bodyLarge!.copyWith(
       color: theme.colorScheme.onPrimaryContainer,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       fontSize: 14,
     );
     final excludedStyle = theme.textTheme.bodyLarge!.copyWith(
       color: theme.colorScheme.onPrimaryContainer,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       fontSize: 14,
       decoration: TextDecoration.lineThrough,
     );

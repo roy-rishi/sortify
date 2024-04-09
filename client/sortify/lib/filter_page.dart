@@ -59,7 +59,7 @@ class SongRow extends StatelessWidget {
     final theme = Theme.of(context);
     final nameStyle = theme.textTheme.labelLarge!.copyWith(
       // color: theme.colorScheme.secondary,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w900,
       fontSize: 16,
     );
     final bodyStyle = theme.textTheme.bodySmall!.copyWith(

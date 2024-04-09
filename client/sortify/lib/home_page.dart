@@ -33,7 +33,7 @@ class CardRowItem extends StatelessWidget {
     final theme = Theme.of(context);
     final buttonLabelStyle = theme.textTheme.titleMedium!.copyWith(
       color: theme.colorScheme.onPrimaryContainer,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w200,
       fontSize: 17,
     );
 
@@ -107,7 +107,7 @@ class _HomePageState extends State<HomePage> {
     );
     final heading2Style = theme.textTheme.headlineLarge!.copyWith(
       color: theme.colorScheme.onBackground,
-      fontWeight: FontWeight.w500,
+      fontWeight: FontWeight.w600,
       fontSize: 34,
     );
 
