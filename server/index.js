@@ -112,7 +112,7 @@ app.post('/login', (req, res) => {
             .then(result => {
                 if (result == true) {
                     console.log("Successful");
-                    res.send(createJWT(user, 5)); // 5 min jwt
+                    res.send(createJWT(user, 20)); // 20 min jwt
                 } else
                     return res.status(401).send("Not successful");
             })
@@ -296,6 +296,7 @@ app.post('/spotify/artist-albums', async (req, res) => {
 
     if (req.headers.authorization == null)
         return res.status(401).send("Missing auth token");
+
     const token = req.headers.authorization.toString().split(" ")[1];
     jwt.verify(token, process.env.SECRET, (err, verified_jwt) => {
         if (err)
