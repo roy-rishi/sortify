@@ -17,7 +17,7 @@ import 'login_popup.dart';
 
 final storage = FlutterSecureStorage();
 
-// create a sort, return server-provided id
+// create a sort
 Future<String> createSort(
     String tracksJson, String filtersJson, BuildContext context) async {
   final storedJwt = await storage.read(key: "jwt");
@@ -39,7 +39,33 @@ Future<String> createSort(
   if (response.statusCode == 401 || response.body == "Jwt is expired") {
     await LoginPopup.displayLogin(context);
   }
+  if (response.body.contains("SQLITE_CONSTRAINT: UNIQUE constraint failed")) {
+    _sortAlreadyExists(context);
+    return "Failed";
+  }
   throw Exception(response.body);
+}
+
+Future<void> _sortAlreadyExists(BuildContext context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text("Too Many Sorts"),
+        content: Text(
+            "You have another sort in progress. Complete or delete your other sort from another window, then try again."),
+        actions: <Widget>[
+          TextButton(
+            child: const Text("Continue"),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
 }
 
 List<SongRow> tracksToSort = [];
@@ -852,12 +878,14 @@ class _FilterPageState extends State<FilterPage> {
                                           Track track = songRow.track;
                                           trackMaps.add(track.toMap());
                                         }
-                                        await createSort(
+                                        String res = await createSort(
                                           jsonEncode(trackMaps),
                                           selections.serializeFilters(),
                                           context,
                                         );
-                                        appState.changePage(SortPageLoader());
+                                        if (res != "Failed") {
+                                          appState.changePage(SortPageLoader());
+                                        }
                                       },
                                       child: Text("Start Sorting"),
                                     ),
