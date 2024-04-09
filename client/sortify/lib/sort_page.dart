@@ -505,13 +505,13 @@ class _SortPageState extends State<SortPage> {
                           // disable button while syncing
                           onPressed: isSyncing
                               ? null
-                              : () {
+                              : () async {
                                   sortStates.addComparisonResult(false);
                                   List<Track> nextPair = sortStates.nextPair();
                                   // if not a set of two, sorting is done
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
-                                    saveCompletedSort(nextPair);
+                                    await saveCompletedSort(nextPair);
                                     appState.changePage(ResultsLoader());
                                   } else {
                                     setState(() {
@@ -565,7 +565,7 @@ class _SortPageState extends State<SortPage> {
               child: IconButton(
                 color: theme.colorScheme.secondary,
                 onPressed: () async {
-                  final res = await deleteIncompleteSort();
+                  await deleteIncompleteSort();
                   setState(() {
                     goHome = true;
                   });

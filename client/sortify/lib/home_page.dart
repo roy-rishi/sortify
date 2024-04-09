@@ -51,7 +51,8 @@ class CardRowItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, size: 30, color: theme.colorScheme.onPrimaryContainer),
+                  Icon(icon,
+                      size: 30, color: theme.colorScheme.onPrimaryContainer),
                   Text(text, style: buttonLabelStyle),
                 ],
               )),
@@ -69,7 +70,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<int> incompletesExist() async {
+  Future<bool> incompletesExist() async {
     final storedJwt = await storage.read(key: "jwt");
     final response = await http.get(
         Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/all-incomplete-sorts"),
@@ -80,13 +81,12 @@ class _HomePageState extends State<HomePage> {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      print(data);
 
-      if (data is List && data.isEmpty) {
-        return -1; // there are no incomplete tests
-      } else if (data is List && data.isNotEmpty) {
-        return data[0]["Key"];
+      if (data is List) {
+        return data.isNotEmpty; // if incomplete tests exist
       } else {
-        throw Exception("An error occured");
+        throw Exception("No data");
       }
     }
     if (response.statusCode == 401) {
@@ -151,8 +151,8 @@ class _HomePageState extends State<HomePage> {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
                                 return Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: 65, right: 65),
+                                  padding: const EdgeInsets.only(
+                                      left: 65, right: 65),
                                   child: CircularProgressIndicator(),
                                 );
                               }
@@ -162,7 +162,8 @@ class _HomePageState extends State<HomePage> {
                               if (snapshot.data == null) {
                                 return Text("No data");
                               }
-                              if (snapshot.data == -1) {
+                              if (snapshot.data == false) {
+                                // there are no incomplete tests
                                 return CardRowItem(
                                   text: "Start Round",
                                   icon: Icons.play_arrow_outlined,

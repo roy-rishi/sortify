@@ -17,7 +17,7 @@ import 'constants.dart';
 final storage = FlutterSecureStorage();
 
 // create a sort, return server-provided id
-Future<int> createSort(String tracksJson) async {
+Future<String> createSort(String tracksJson, String filtersJson) async {
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/create-sort"),
@@ -27,11 +27,12 @@ Future<int> createSort(String tracksJson) async {
     },
     body: jsonEncode(<String, String>{
       "songs": tracksJson,
+      "filters": filtersJson,
     }),
   );
 
   if (response.statusCode == 200) {
-    return int.parse(response.body);
+    return response.body;
   }
   if (response.statusCode == 401) {
     throw Exception("Login page");
@@ -119,102 +120,6 @@ class SongRow extends StatelessWidget {
   }
 }
 
-Future<List<SongRow>> calculateSongs(List<SortParameter> filters) async {
-  SongManager selections = SongManager();
-
-  // load names of selections into object
-  for (int i = 0; i < filters.length; i++) {
-    SortParameter filter = filters[i];
-    if (filter.typeSelected == "Artist") {
-      selections.artists.add((Artist(name: filter.valueController.text)));
-    } else if (filter.typeSelected == "Album") {
-      if (filter.actionSelected == "Include") {
-        selections.albums.add((Album(name: filter.valueController.text)));
-      } else {
-        selections.excludedAlbums
-            .add((Album(name: filter.valueController.text)));
-      }
-    }
-  }
-  // fetch and parse api data for artists
-  for (Artist artist in selections.artists) {
-    final artistData =
-        jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
-            as Map<String, dynamic>;
-    artist.id = artistData["artists"]["items"][0]["id"];
-    artist.name = artistData["artists"]["items"][0]["name"];
-    artist.followers = artistData["artists"]["items"][0]["followers"]["total"];
-    artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
-    // fetch and parse api data for artist albums
-    final artistAlbumData =
-        jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
-            as Map<String, dynamic>;
-    for (int i = 0; i < artistAlbumData["items"].length; i++) {
-      bool sameArtist = false;
-      for (int j = 0; j < artistAlbumData["items"][i]["artists"].length; j++) {
-        if (artistAlbumData["items"][i]["artists"][j]["id"] == artist.id) {
-          sameArtist = true;
-        }
-      }
-      if (!sameArtist) {
-        break;
-      }
-      final newAlbum = Album(name: artistAlbumData["items"][i]["name"]);
-      newAlbum.id = artistAlbumData["items"][i]["id"];
-      newAlbum.artistName = artist.name;
-      newAlbum.imageUrl = artistAlbumData["items"][i]["images"][0]["url"];
-      newAlbum.releaseDate = artistAlbumData["items"][i]["release_date"];
-      artist.albums.add(newAlbum);
-    }
-  }
-  // fetch and parse api data for all albums
-  List<Album> albumsEntered = [];
-  albumsEntered.addAll(selections.albums);
-  albumsEntered.addAll(selections.excludedAlbums);
-  for (final album in albumsEntered) {
-    final albumData = jsonDecode(await querySpotify(album.name, "album", 1, 0))
-        as Map<String, dynamic>;
-    album.id = albumData["albums"]["items"][0]["id"];
-    album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
-    album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
-    album.releaseDate = albumData["albums"]["items"][0]["release_date"];
-  }
-  // fetch and parse album tracks
-  List<Album> allAlbums = [];
-  allAlbums.addAll(selections.albums);
-  for (Artist artist in selections.artists) {
-    for (Album album in artist.albums) {
-      allAlbums.add(album);
-    }
-  }
-  for (Album album in allAlbums) {
-    final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0))
-        as Map<String, dynamic>;
-
-    for (int i = 0; i < tracksData["items"].length; i++) {
-      final track = tracksData["items"][i];
-      album.tracks.add(Track(
-          name: track["name"],
-          albumName: album.name,
-          artistName: album.artistName,
-          id: track["id"],
-          releaseDate: album.releaseDate,
-          imageUrl: album.imageUrl));
-    }
-  }
-
-  List<Track> finalTracks = selections.computeAllTracks();
-  // remove duplicates
-  finalTracks = LinkedHashSet<Track>.from(finalTracks).toList();
-
-  List<SongRow> songRows = [];
-  for (final track in finalTracks) {
-    final image = Image.network(track.imageUrl);
-    songRows.add(SongRow(track: track, image: image));
-  }
-  return songRows;
-}
-
 // track holding classes
 class SongManager {
   List<Artist> artists = [];
@@ -240,6 +145,49 @@ class SongManager {
       }
     }
     return allTracks;
+  }
+
+  void clearAll() {
+    artists.clear();
+    albums.clear();
+    excludedAlbums.clear();
+  }
+
+  String serializeFilters() {
+    List<Map<String, dynamic>> data = [];
+
+    for (Artist artist in artists) {
+      Map<String, dynamic> artistData = {
+        "type": "Artist",
+        "included": true,
+        "name": artist.name,
+        "imageUrl": artist._imageUrl,
+        "id": artist.id
+      };
+      data.add(artistData);
+    }
+    for (Album album in albums) {
+      Map<String, dynamic> albumData = {
+        "type": "Album",
+        "included": true,
+        "name": album.name,
+        "imageUrl": album.imageUrl,
+        "id": album.id
+      };
+      data.add(albumData);
+    }
+    for (Album album in excludedAlbums) {
+      Map<String, dynamic> albumData = {
+        "type": "Album",
+        "included": false,
+        "name": album.name,
+        "imageUrl": album.imageUrl,
+        "id": album.id
+      };
+      data.add(albumData);
+    }
+    print(json.encode(data));
+    return json.encode(data);
   }
 }
 
@@ -450,17 +398,12 @@ class _SortParameterState extends State<SortParameter> {
                   child: Row(
                     children: [
                       Flexible(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 25),
-                              child: TextField(
-                                controller: widget.valueController,
-                                decoration: InputDecoration(labelText: "Name"),
-                              ),
-                            ),
-                          ],
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 25),
+                          child: TextField(
+                            controller: widget.valueController,
+                            decoration: InputDecoration(labelText: "Name"),
+                          ),
                         ),
                       ),
                       if (widget.typeSelected == "Album")
@@ -555,6 +498,111 @@ class _FilterPageState extends State<FilterPage> {
   }
 
   bool calculatingTracksToSort = false;
+
+  SongManager selections = SongManager();
+
+  void parseSelections(List<SortParameter> filters) {
+    // remove all existing selections
+    selections.clearAll();
+    // load names of selections into object
+    for (int i = 0; i < filters.length; i++) {
+      SortParameter filter = filters[i];
+      if (filter.typeSelected == "Artist") {
+        selections.artists.add((Artist(name: filter.valueController.text)));
+      } else if (filter.typeSelected == "Album") {
+        if (filter.actionSelected == "Include") {
+          selections.albums.add((Album(name: filter.valueController.text)));
+        } else {
+          selections.excludedAlbums
+              .add((Album(name: filter.valueController.text)));
+        }
+      }
+    }
+  }
+
+  Future<List<SongRow>> calculateSongs() async {
+    // fetch and parse api data for artists
+    for (Artist artist in selections.artists) {
+      final artistData =
+          jsonDecode(await querySpotify(artist.name, "artist", 1, 0))
+              as Map<String, dynamic>;
+      artist.id = artistData["artists"]["items"][0]["id"];
+      artist.name = artistData["artists"]["items"][0]["name"];
+      artist.followers =
+          artistData["artists"]["items"][0]["followers"]["total"];
+      artist.imageUrl = artistData["artists"]["items"][0]["images"][0]["url"];
+      // fetch and parse api data for artist albums
+      final artistAlbumData =
+          jsonDecode(await artistAlbumsSpotify(artist.id, 50, 0))
+              as Map<String, dynamic>;
+      for (int i = 0; i < artistAlbumData["items"].length; i++) {
+        bool sameArtist = false;
+        for (int j = 0;
+            j < artistAlbumData["items"][i]["artists"].length;
+            j++) {
+          if (artistAlbumData["items"][i]["artists"][j]["id"] == artist.id) {
+            sameArtist = true;
+          }
+        }
+        if (!sameArtist) {
+          break;
+        }
+        final newAlbum = Album(name: artistAlbumData["items"][i]["name"]);
+        newAlbum.id = artistAlbumData["items"][i]["id"];
+        newAlbum.artistName = artist.name;
+        newAlbum.imageUrl = artistAlbumData["items"][i]["images"][0]["url"];
+        newAlbum.releaseDate = artistAlbumData["items"][i]["release_date"];
+        artist.albums.add(newAlbum);
+      }
+    }
+    // fetch and parse api data for all albums
+    List<Album> albumsEntered = [];
+    albumsEntered.addAll(selections.albums);
+    albumsEntered.addAll(selections.excludedAlbums);
+    for (final album in albumsEntered) {
+      final albumData =
+          jsonDecode(await querySpotify(album.name, "album", 1, 0))
+              as Map<String, dynamic>;
+      album.id = albumData["albums"]["items"][0]["id"];
+      album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
+      album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
+      album.releaseDate = albumData["albums"]["items"][0]["release_date"];
+    }
+    // fetch and parse album tracks
+    List<Album> allAlbums = [];
+    allAlbums.addAll(selections.albums);
+    for (Artist artist in selections.artists) {
+      for (Album album in artist.albums) {
+        allAlbums.add(album);
+      }
+    }
+    for (Album album in allAlbums) {
+      final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0))
+          as Map<String, dynamic>;
+
+      for (int i = 0; i < tracksData["items"].length; i++) {
+        final track = tracksData["items"][i];
+        album.tracks.add(Track(
+            name: track["name"],
+            albumName: album.name,
+            artistName: album.artistName,
+            id: track["id"],
+            releaseDate: album.releaseDate,
+            imageUrl: album.imageUrl));
+      }
+    }
+
+    List<Track> finalTracks = selections.computeAllTracks();
+    // remove duplicates
+    finalTracks = LinkedHashSet<Track>.from(finalTracks).toList();
+
+    List<SongRow> songRows = [];
+    for (final track in finalTracks) {
+      final image = Image.network(track.imageUrl);
+      songRows.add(SongRow(track: track, image: image));
+    }
+    return songRows;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -677,8 +725,12 @@ class _FilterPageState extends State<FilterPage> {
                                       tracksToSort.clear();
                                       calculatingTracksToSort = true;
                                     });
-                                    final songs =
-                                        await calculateSongs(filterWidgets);
+
+                                    // parse filters for selections
+                                    parseSelections(filterWidgets);
+                                    // calculate all songs
+                                    final songs = await calculateSongs();
+
                                     setState(() {
                                       for (final song in songs) {
                                         tracksToSort.add(song);
@@ -750,8 +802,10 @@ class _FilterPageState extends State<FilterPage> {
                                           Track track = songRow.track;
                                           trackMaps.add(track.toMap());
                                         }
-                                        final int key = (await createSort(
-                                            jsonEncode(trackMaps)));
+                                        await createSort(
+                                          jsonEncode(trackMaps),
+                                          selections.serializeFilters(),
+                                        );
                                         appState.changePage(SortPageLoader());
                                       },
                                       child: Text("Start Sorting"),

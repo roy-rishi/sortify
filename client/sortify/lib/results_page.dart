@@ -32,10 +32,15 @@ Future<List<dynamic>> loadResults() async {
 }
 
 class ResultCard extends StatefulWidget {
-  const ResultCard({super.key, required this.date, required this.songs});
+  const ResultCard(
+      {super.key,
+      required this.date,
+      required this.songs,
+      required this.filters});
 
   final String date;
   final List<SongRow> songs;
+  final List<dynamic> filters;
 
   @override
   State<ResultCard> createState() => _ResultCardState();
@@ -94,10 +99,38 @@ class _ResultCardState extends State<ResultCard> {
       color: theme.colorScheme.secondary,
       fontWeight: FontWeight.w600,
     );
+    final includedStyle = theme.textTheme.bodyLarge!.copyWith(
+      color: theme.colorScheme.onPrimaryContainer,
+      fontWeight: FontWeight.w400,
+      fontSize: 14,
+    );
+    final excludedStyle = theme.textTheme.bodyLarge!.copyWith(
+      color: theme.colorScheme.onPrimaryContainer,
+      fontWeight: FontWeight.w400,
+      fontSize: 14,
+      decoration: TextDecoration.lineThrough,
+    );
+
+    // load filters into spans with styles
+    List<TextSpan> spans = [];
+    for (int i = 0; i < widget.filters.length; i++) {
+      Map<String, dynamic> filter = widget.filters[i];
+    // for (Map<String, dynamic> filter in widget.filters) {
+      String name = filter["name"];
+      bool included = filter["included"];
+      TextSpan span = TextSpan(text: name, style: included ? includedStyle : excludedStyle);
+      spans.add(span);
+
+      // add comma behind, if not last filter
+      if (i < widget.filters.length - 1) {
+        TextSpan commaSpan = TextSpan(text: ", ", style: includedStyle);
+        spans.add(commaSpan);
+      }
+    }
 
     return Center(
       child: SizedBox(
-        width: 340,
+        width: 440,
         child: Card.filled(
           color: theme.colorScheme.primaryContainer,
           clipBehavior: Clip.hardEdge,
@@ -112,6 +145,21 @@ class _ResultCardState extends State<ResultCard> {
                 Padding(
                   padding: const EdgeInsets.only(left: 20, top: 12, bottom: 12),
                   child: Text(widget.date.split(", ")[0], style: dateStyle),
+                ),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: RichText(
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
+                      softWrap: false,
+                      text: TextSpan(
+                        children: <TextSpan>[
+                          ...spans,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(right: 20),
@@ -156,6 +204,12 @@ class ResultsLoader extends StatelessWidget {
             DateFormat formatter = DateFormat('MMM d, h:mm a');
             String formattedDate = formatter.format(date);
             List<SongRow> songRows = [];
+            // get filters
+            if (row["Filters"] == null) {
+              print("Filters are missing");
+              continue;
+            }
+            List<dynamic> filters = json.decode(row["Filters"]);
 
             try {
               List<dynamic> tracks = json.decode(row["Songs"]);
@@ -184,6 +238,7 @@ class ResultsLoader extends StatelessWidget {
               results.add(ResultCard(
                 date: formattedDate,
                 songs: songRows,
+                filters: filters,
               ));
             } on FormatException {
               // if one of the table's rows cannot be parsed, skip it
@@ -230,7 +285,8 @@ class _ResultsPageState extends State<ResultsPage> {
             ),
             Positioned(
               top: 55, // Adjust this value as needed
-              left: MediaQuery.of(context).size.width / 2 - 200, // Adjust this value as needed
+              left: MediaQuery.of(context).size.width / 2 -
+                  200, // Adjust this value as needed
               child: IconButton(
                 onPressed: () {
                   appState.changePage(HomePage());
