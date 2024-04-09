@@ -85,7 +85,6 @@ app.post('/login', (req, res) => {
 
     // parse authentication header
     const auth_header = req.headers.authorization;
-    console.log(auth_header);
     if (!auth_header) {
         res.setHeader("WWW-Authenticate", "Basic");
         return res.status(401).send("Unauthorized request");
