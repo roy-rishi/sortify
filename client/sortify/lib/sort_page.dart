@@ -39,11 +39,11 @@ class SortPageLoader extends StatelessWidget {
               tracksJson.map((element) => Track.fromJson(element)).toList();
 
           List<bool> comparisons = [];
-
           if (data["Comparisons"] != null) {
-            List<dynamic> comparisonsData = json.decode(data["Comparisons"]);
-            comparisons =
-                comparisonsData.map((element) => element == "true").toList();
+            List<dynamic> compData = json.decode(data["Comparisons"]);
+            for (bool item in compData) {
+              comparisons.add(item);
+            }
           }
 
           return SortPage(
@@ -401,6 +401,9 @@ class _SortPageState extends State<SortPage> {
 
     if (response.statusCode == 200) {
       return response.body;
+    }
+    if (response.statusCode == 401 || response.body == "Jwt is expired") {
+      await LoginPopup.displayLogin(context);
     }
     throw Exception(response.body);
   }
