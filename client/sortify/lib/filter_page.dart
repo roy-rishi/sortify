@@ -606,8 +606,7 @@ class _FilterPageState extends State<FilterPage> {
       final albumData =
           jsonDecode(await querySpotify(album.name, "album", 1, 0, context))
               as Map<String, dynamic>;
-      if (albumData["artists"] == null ||
-          albumData["artists"]["items"].isEmpty) {
+      if (albumData["albums"]["items"].isEmpty) {
         print("Could not find an album of name ${album.name}");
         _noResultsPopup("album", album.name);
         List<SongRow> empty = [];
