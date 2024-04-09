@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'app_state.dart';
 import 'constants.dart';
 import 'results_page.dart';
+import 'login_popup.dart';
 
 final storage = FlutterSecureStorage();
 
@@ -70,7 +71,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<bool> incompletesExist() async {
+  Future<bool> incompletesExist(BuildContext context) async {
     final storedJwt = await storage.read(key: "jwt");
     final response = await http.get(
         Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/all-incomplete-sorts"),
@@ -89,8 +90,8 @@ class _HomePageState extends State<HomePage> {
         throw Exception("No data");
       }
     }
-    if (response.statusCode == 401) {
-      throw Exception("Need to login");
+    if (response.statusCode == 401 || response.body == "Jwt is expired") {
+      await LoginPopup.displayLogin(context);
     }
     throw Exception(response.body);
   }
@@ -146,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                         Padding(
                           padding: const EdgeInsets.only(right: 14),
                           child: FutureBuilder(
-                            future: incompletesExist(),
+                            future: incompletesExist(context),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {

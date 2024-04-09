@@ -12,10 +12,11 @@ import 'package:sortify/app_state.dart';
 import 'filter_page.dart';
 import 'constants.dart';
 import 'home_page.dart';
+import 'login_popup.dart';
 
 final storage = FlutterSecureStorage();
 
-Future<List<dynamic>> loadResults() async {
+Future<List<dynamic>> loadResults(BuildContext context) async {
   final storedJwt = await storage.read(key: "jwt");
 
   final response = await http.get(
@@ -27,6 +28,9 @@ Future<List<dynamic>> loadResults() async {
 
   if (response.statusCode == 200) {
     return json.decode(response.body);
+  }
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
@@ -101,12 +105,12 @@ class _ResultCardState extends State<ResultCard> {
     );
     final includedStyle = theme.textTheme.bodyLarge!.copyWith(
       color: theme.colorScheme.onPrimaryContainer,
-      fontWeight: FontWeight.w400,
+      fontWeight: FontWeight.w500,
       fontSize: 14,
     );
     final excludedStyle = theme.textTheme.bodyLarge!.copyWith(
       color: theme.colorScheme.onPrimaryContainer,
-      fontWeight: FontWeight.w400,
+      fontWeight: FontWeight.w500,
       fontSize: 14,
       decoration: TextDecoration.lineThrough,
     );
@@ -115,10 +119,11 @@ class _ResultCardState extends State<ResultCard> {
     List<TextSpan> spans = [];
     for (int i = 0; i < widget.filters.length; i++) {
       Map<String, dynamic> filter = widget.filters[i];
-    // for (Map<String, dynamic> filter in widget.filters) {
+      // for (Map<String, dynamic> filter in widget.filters) {
       String name = filter["name"];
       bool included = filter["included"];
-      TextSpan span = TextSpan(text: name, style: included ? includedStyle : excludedStyle);
+      TextSpan span =
+          TextSpan(text: name, style: included ? includedStyle : excludedStyle);
       spans.add(span);
 
       // add comma behind, if not last filter
@@ -142,23 +147,31 @@ class _ResultCardState extends State<ResultCard> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 20, top: 12, bottom: 12),
-                  child: Text(widget.date.split(", ")[0], style: dateStyle),
-                ),
                 Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: RichText(
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 3,
-                      softWrap: false,
-                      text: TextSpan(
-                        children: <TextSpan>[
-                          ...spans,
-                        ],
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(left: 20, top: 12, bottom: 12),
+                        child: Text(widget.date.split(", ")[0], style: dateStyle),
                       ),
-                    ),
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
+                          child: RichText(
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 3,
+                            softWrap: false,
+                            text: TextSpan(
+                              children: <TextSpan>[
+                                ...spans,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Padding(
@@ -180,7 +193,7 @@ class ResultsLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-        future: loadResults(),
+        future: loadResults(context),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(

@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import 'package:sortify/home_page.dart';
 import 'package:sortify/results_page.dart';
@@ -15,18 +13,18 @@ import 'dart:async';
 import 'filter_page.dart';
 import 'app_state.dart';
 import 'constants.dart';
+import 'login_popup.dart';
 
 final storage = FlutterSecureStorage();
 
 // display loading icon until sort data is acquired from server
 class SortPageLoader extends StatelessWidget {
-
   const SortPageLoader({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: loadSort(),
+      future: loadSort(context),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -58,11 +56,10 @@ class SortPageLoader extends StatelessWidget {
   }
 }
 
-Future<String> loadSort() async {
+Future<String> loadSort(BuildContext context) async {
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.get(
-      Uri.parse(
-          "$HTTP_PROTOCOL$SERVER_BASE_URL/get-incomplete-sort"),
+      Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/get-incomplete-sort"),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         HttpHeaders.authorizationHeader: "Bearer $storedJwt",
@@ -71,8 +68,8 @@ Future<String> loadSort() async {
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 401) {
-    throw Exception("Need to login");
+  if (response.statusCode == 401 || response.body == "Jwt is expired") {
+    await LoginPopup.displayLogin(context);
   }
   throw Exception(response.body);
 }
@@ -220,9 +217,7 @@ class SongCard extends StatelessWidget {
 
 class SortPage extends StatefulWidget {
   const SortPage(
-      {super.key,
-      required this.tracks,
-      required this.initialComparisons});
+      {super.key, required this.tracks, required this.initialComparisons});
 
   final List<Track> tracks;
   final List<bool> initialComparisons;
@@ -271,6 +266,9 @@ class _SortPageState extends State<SortPage> {
       });
       return response.body;
     }
+    if (response.statusCode == 401 || response.body == "Jwt is expired") {
+      await LoginPopup.displayLogin(context);
+    }
     if (response.body == "This incomplete no longer exists") {
       _deletedSortAlert();
       return "";
@@ -278,7 +276,7 @@ class _SortPageState extends State<SortPage> {
     if (response.body ==
         "Unable to add comparison; this sorting session is behind the database") {
       // the client is behind the server, need to download progress
-      Map<String, dynamic> data = json.decode(await loadSort());
+      Map<String, dynamic> data = json.decode(await loadSort(context));
       setState(() {
         // convert to List<bool>
         sortStates.comparisons =
@@ -475,7 +473,8 @@ class _SortPageState extends State<SortPage> {
                                   // if not a set of two, sorting is done
                                   if (nextPair.length >=
                                       sortStates.songs.length) {
-                                    String res = await saveCompletedSort(nextPair);
+                                    String res =
+                                        await saveCompletedSort(nextPair);
                                     appState.changePage(ResultsLoader());
                                   } else {
                                     setState(() {
