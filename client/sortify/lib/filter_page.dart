@@ -18,7 +18,8 @@ import 'login_popup.dart';
 final storage = FlutterSecureStorage();
 
 // create a sort, return server-provided id
-Future<String> createSort(String tracksJson, String filtersJson, BuildContext context) async {
+Future<String> createSort(
+    String tracksJson, String filtersJson, BuildContext context) async {
   final storedJwt = await storage.read(key: "jwt");
   final response = await http.post(
     Uri.parse("$HTTP_PROTOCOL$SERVER_BASE_URL/create-sort"),
@@ -290,8 +291,8 @@ class Track {
 List<SortParameter> filterWidgets = [];
 // search for artist, album, or track
 // name: name of item, type: "artist", "album", or "track"
-Future<String> querySpotify(
-    String name, String type, int limit, int offset, BuildContext context) async {
+Future<String> querySpotify(String name, String type, int limit, int offset,
+    BuildContext context) async {
   final queryParameters = {
     "query": "$type:$name",
     "type": type,
@@ -317,7 +318,8 @@ Future<String> querySpotify(
   throw Exception(response.body);
 }
 
-Future<String> artistAlbumsSpotify(String id, int limit, int offset, BuildContext context) async {
+Future<String> artistAlbumsSpotify(
+    String id, int limit, int offset, BuildContext context) async {
   final queryParameters = {
     "id": id,
     "limit": limit.toString(),
@@ -343,7 +345,8 @@ Future<String> artistAlbumsSpotify(String id, int limit, int offset, BuildContex
   throw Exception(response.body);
 }
 
-Future<String> albumTracksSpotify(String id, int limit, int offset, BuildContext context) async {
+Future<String> albumTracksSpotify(
+    String id, int limit, int offset, BuildContext context) async {
   final queryParameters = {
     "id": id,
     "limit": limit.toString(),
@@ -500,6 +503,39 @@ class _FilterPageState extends State<FilterPage> {
 
   bool calculatingTracksToSort = false;
 
+  Future<void> _noResultsPopup(String type, String name) async {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.headlineMedium!.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w500,
+    );
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Center(child: Text("No Results", style: titleStyle)),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text("Spotify could not find an $type named $name"),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Go Back"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   SongManager selections = SongManager();
 
   void parseSelections(List<SortParameter> filters) {
@@ -527,6 +563,12 @@ class _FilterPageState extends State<FilterPage> {
       final artistData =
           jsonDecode(await querySpotify(artist.name, "artist", 1, 0, context))
               as Map<String, dynamic>;
+      if (artistData["artists"]["items"].isEmpty) {
+        print("Could not find an artist of name ${artist.name}");
+        _noResultsPopup("artist", artist.name);
+        List<SongRow> empty = [];
+        return empty;
+      }
       artist.id = artistData["artists"]["items"][0]["id"];
       artist.name = artistData["artists"]["items"][0]["name"];
       artist.followers =
@@ -564,6 +606,13 @@ class _FilterPageState extends State<FilterPage> {
       final albumData =
           jsonDecode(await querySpotify(album.name, "album", 1, 0, context))
               as Map<String, dynamic>;
+      if (albumData["artists"] == null ||
+          albumData["artists"]["items"].isEmpty) {
+        print("Could not find an album of name ${album.name}");
+        _noResultsPopup("album", album.name);
+        List<SongRow> empty = [];
+        return empty;
+      }
       album.id = albumData["albums"]["items"][0]["id"];
       album.artistName = albumData["albums"]["items"][0]["artists"][0]["name"];
       album.imageUrl = albumData["albums"]["items"][0]["images"][0]["url"];
@@ -578,8 +627,9 @@ class _FilterPageState extends State<FilterPage> {
       }
     }
     for (Album album in allAlbums) {
-      final tracksData = jsonDecode(await albumTracksSpotify(album.id, 50, 0, context))
-          as Map<String, dynamic>;
+      final tracksData =
+          jsonDecode(await albumTracksSpotify(album.id, 50, 0, context))
+              as Map<String, dynamic>;
 
       for (int i = 0; i < tracksData["items"].length; i++) {
         final track = tracksData["items"][i];
