@@ -86,11 +86,21 @@ class _SendEmailPanelState extends State<SendEmailPanel> {
         width: 320,
         height: 42,
         child: TextField(
+          autofocus: true,
           controller: _emailController,
           decoration: InputDecoration(
             border: OutlineInputBorder(),
             labelText: "Email",
           ),
+          onSubmitted: (value) {
+            print("Sending email");
+            verifyEmail(_emailController.text);
+            appState.updatePanelIndex(1); // move to next panel
+            var snackBar = SnackBar(
+              content: Center(child: Text("Email Sent")),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          },
         ),
       ),
       Padding(
@@ -112,7 +122,7 @@ class _SendEmailPanelState extends State<SendEmailPanel> {
                 print("Sending email");
                 verifyEmail(_emailController.text);
                 appState.updatePanelIndex(1); // move to next panel
-        
+
                 var snackBar = SnackBar(
                   content: Center(child: Text("Email Sent")),
                 );

@@ -96,6 +96,30 @@ class _LoginPageState extends State<LoginPage> {
                   border: OutlineInputBorder(),
                   labelText: "Email",
                 ),
+                onSubmitted: (value) {
+                  if (emailRegStatus == "Unverified") {
+                    setState(() {
+                      futureEmailStatus =
+                          emailStatus(_emailController.text.trim());
+                    });
+                  } else if (emailRegStatus == "Email is registered") {
+                    attemptLogin(_emailController.text.trim(),
+                            _passwordController.text.trim())
+                        .then((loginStatus) {
+                      if (loginStatus) {
+                        appState.changePage(HomePage());
+                      } else {
+                        var snackBar = SnackBar(
+                          content:
+                              Center(child: Text("Invalid Login Credentials")),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                      }
+                    }).catchError((error) {
+                      print(error);
+                    });
+                  }
+                },
               ),
             ),
             FutureBuilder<String>(
@@ -111,12 +135,40 @@ class _LoginPageState extends State<LoginPage> {
                         width: 320,
                         height: 42,
                         child: TextField(
+                          autofocus: true,
                           obscureText: true,
                           controller: _passwordController,
                           decoration: InputDecoration(
                             border: OutlineInputBorder(),
                             labelText: "Password",
                           ),
+                          onSubmitted: (value) {
+                            if (emailRegStatus == "Unverified") {
+                              setState(() {
+                                futureEmailStatus =
+                                    emailStatus(_emailController.text.trim());
+                              });
+                            } else if (emailRegStatus ==
+                                "Email is registered") {
+                              attemptLogin(_emailController.text.trim(),
+                                      _passwordController.text.trim())
+                                  .then((loginStatus) {
+                                if (loginStatus) {
+                                  appState.changePage(HomePage());
+                                } else {
+                                  var snackBar = SnackBar(
+                                    content: Center(
+                                        child:
+                                            Text("Invalid Login Credentials")),
+                                  );
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(snackBar);
+                                }
+                              }).catchError((error) {
+                                print(error);
+                              });
+                            }
+                          },
                         ),
                       ),
                     );
