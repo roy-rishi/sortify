@@ -1,6 +1,5 @@
 import random
 import pandas as pd
-import bisect
 
 # return a dict{array size, array} of random integers 1 to 1000
 def generateTestCases():
