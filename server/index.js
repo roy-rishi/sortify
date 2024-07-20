@@ -17,8 +17,8 @@ const app = express();
 const PORT = 3004;
 
 var options = {
-    key: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/privkey.pem'),
-    cert: fs.readFileSync('/etc/letsencrypt/live/rishiroy.com-0001/fullchain.pem'),
+    key: fs.readFileSync('keys/privkey.pem'),
+    cert: fs.readFileSync('keys/fullchain.pem'),
     // disable tls1.0 and tls1.1
     secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1
 };
